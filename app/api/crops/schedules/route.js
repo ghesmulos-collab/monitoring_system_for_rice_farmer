@@ -1,9 +1,6 @@
 import { db } from '@/lib/db';
 import { NextResponse } from 'next/server';
 
-/* =========================
-   GET - Fetch schedules (FIXED)
-========================= */
 export async function GET() {
   try {
     const [rows] = await db.execute(`
@@ -14,12 +11,11 @@ export async function GET() {
         ss.days_remaining,
 
         COALESCE(c.growth_stage, 'N/A') AS growth_stage,
-        COALESCE(c.fertilizer_type, 'N/A') AS fertilizer_type,
         COALESCE(c.expected_harvest_date, 'N/A') AS expected_harvest_date,
         COALESCE(c.estimated_yield, 'N/A') AS estimated_yield
 
       FROM suggested_schedule ss
-      INNER JOIN crop c 
+      LEFT JOIN crop c
         ON LOWER(TRIM(ss.crop_id)) = LOWER(TRIM(c.crop_id))
 
       ORDER BY ss.crop_id ASC, ss.days_remaining ASC
@@ -39,7 +35,6 @@ export async function GET() {
     );
   }
 }
-
 /* =========================
    POST - Generate schedule (FIXED)
 ========================= */
