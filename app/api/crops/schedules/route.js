@@ -3,54 +3,32 @@ import { NextResponse } from 'next/server';
 
 export async function GET() {
   try {
-    const [crops] = await db.execute(`
+    const [rows] = await db.execute(`
       SELECT 
-        crop_id,
-        growth_stage,
-        fertilizer_type,
-        expected_harvest_date,
-        estimated_yield,
-        planting_date
-      FROM crop
-      ORDER BY created_at DESC
+        ss.suggested_schedule_id,
+        ss.crop_id,
+
+        c.growth_stage,
+        c.fertilizer_type,
+        c.expected_harvest_date,
+        c.estimated_yield,
+
+        ss.application_schedule,
+        ss.days_remaining
+
+      FROM suggested_schedule ss
+      JOIN crop c ON ss.crop_id = c.crop_id
+      ORDER BY ss.crop_id, ss.days_remaining ASC
     `);
 
-    const tasks = [
-      { name: 'Basal Application', days: 0 },
-      { name: 'First Top Dress', days: 15 },
-      { name: 'Second Top Dress', days: 35 },
-      { name: 'Harvesting', days: 110 }
-    ];
-
-    let result = [];
-
-    for (const crop of crops) {
-      const start = new Date(crop.planting_date);
-
-      for (const task of tasks) {
-        const date = new Date(start);
-        date.setDate(start.getDate() + task.days);
-
-        result.push({
-          crop_id: crop.crop_id,
-          growth_stage: crop.growth_stage,
-          fertilizer_type: crop.fertilizer_type,
-          application_schedule: task.name,
-          expected_harvest_date: crop.expected_harvest_date,
-          estimated_yield: crop.estimated_yield,
-          days_remaining: task.days
-        });
-      }
-    }
-
-    return NextResponse.json(result);
+    return NextResponse.json(rows);
 
   } catch (error) {
-    console.error("CROP SCHEDULE ERROR:", error);
+    console.error("SCHEDULE GET ERROR:", error);
 
     return NextResponse.json(
       {
-        error: "Failed to generate schedules from crop table",
+        error: "Failed to fetch schedules",
         debug: error.message
       },
       { status: 500 }
