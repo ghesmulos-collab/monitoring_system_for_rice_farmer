@@ -7,16 +7,13 @@ export async function GET() {
       SELECT 
         ss.suggested_schedule_id,
         ss.crop_id,
-
-        -- FIX: fallback for NULL schedule values
-        COALESCE(ss.application_schedule, 'Unknown Task') AS application_schedule,
-
+        ss.application_schedule,
         ss.days_remaining,
 
-        COALESCE(c.growth_stage, 'N/A') AS growth_stage,
-        COALESCE(c.fertilizer_type, 'N/A') AS fertilizer_type,
-        COALESCE(c.expected_harvest_date, 'N/A') AS expected_harvest_date,
-        COALESCE(c.estimated_yield, 'N/A') AS estimated_yield
+        c.growth_stage AS crop_growth_stage,
+        c.fertilizer_type AS crop_fertilizer_type,
+        c.expected_harvest_date AS crop_expected_harvest_date,
+        c.estimated_yield AS crop_estimated_yield
 
       FROM suggested_schedule ss
       LEFT JOIN crop c
@@ -25,9 +22,24 @@ export async function GET() {
       ORDER BY ss.crop_id ASC, ss.days_remaining ASC
     `);
 
-    return NextResponse.json(rows);
+    // map clean output so frontend NEVER gets confused
+    const formatted = rows.map(r => ({
+      suggested_schedule_id: r.suggested_schedule_id,
+      crop_id: r.crop_id,
+      application_schedule: r.application_schedule ?? 'Unknown Task',
+      days_remaining: r.days_remaining,
+
+      growth_stage: r.crop_growth_stage ?? 'N/A',
+      fertilizer_type: r.crop_fertilizer_type ?? 'N/A',
+      expected_harvest_date: r.crop_expected_harvest_date ?? 'N/A',
+      estimated_yield: r.crop_estimated_yield ?? 'N/A'
+    }));
+
+    return NextResponse.json(formatted);
 
   } catch (error) {
+    console.error("GET ERROR:", error);
+
     return NextResponse.json(
       {
         error: "Failed to fetch schedules",
