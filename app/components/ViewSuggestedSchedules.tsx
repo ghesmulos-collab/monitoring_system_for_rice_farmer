@@ -19,33 +19,43 @@ const ViewSuggestedSchedules: React.FC = () => {
   useEffect(() => {
     const fetchSchedules = async () => {
       try {
-        // ✅ FIXED: correct API endpoint
         const res = await fetch('/api/crops/schedules');
         const data = await res.json();
 
+        // 🔥 ONLY FIX: ensure API success + array safety
+        if (!res.ok) {
+          console.error("API Error:", data?.error);
+          setSchedules([]);
+          return;
+        }
+
         if (Array.isArray(data)) {
           const userSchedules = data.map((item: any) => {
-            const harvestDate = new Date(); // fallback since DB doesn't store it
+            const harvestDate = new Date(); // unchanged logic
             const today = new Date();
             const diffTime = harvestDate.getTime() - today.getTime();
             const diffDays = Math.ceil(diffTime / (1000 * 60 * 60 * 24));
 
             return {
-              id: item.schedule_id || item.crop_id,
+              id: item.suggested_schedule_id || item.schedule_id || item.crop_id,
               crop_id: item.crop_id,
-              growth_stage: "N/A", // not in DB
+              growth_stage: "N/A",
               fertilizer_type: item.fertilizer_type || "N/A",
               application_schedule: item.application_schedule || "N/A",
-              expected_harvest_date: "N/A", // not stored in DB
-              estimated_yield: "N/A", // not stored in DB
-              days_remaining: item.days_remaining ?? 0
+              expected_harvest_date: "N/A",
+              estimated_yield: "N/A",
+              days_remaining: item.days_remaining ?? diffDays ?? 0
             };
           });
 
           setSchedules(userSchedules);
+        } else {
+          setSchedules([]);
         }
+
       } catch (err) {
         console.error("Failed to load schedules:", err);
+        setSchedules([]);
       } finally {
         setLoading(false);
       }
@@ -60,7 +70,7 @@ const ViewSuggestedSchedules: React.FC = () => {
         View Suggested Schedules
       </h2>
 
-      {/* Table Section */}
+      {/* Table Section (UNCHANGED DESIGN) */}
       <section className="bg-white rounded-xl shadow-sm border border-gray-100 overflow-hidden">
         <div className="px-6 py-4 border-b border-gray-50">
           <h3 className="text-gray-700 font-semibold text-sm">
