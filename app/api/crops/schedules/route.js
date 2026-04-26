@@ -1,42 +1,36 @@
 import { db } from '@/lib/db';
 import { NextResponse } from 'next/server';
 
-/* =========================
-   GET - Debug / Safe Fetch
-========================= */
 export async function GET() {
   try {
-    const [[dbName]] = await db.execute(`SELECT DATABASE() AS db`);
+    const [rows] = await db.execute(`
+      SELECT 
+        ss.suggested_schedule_id,
+        ss.crop_id,
+        ss.application_schedule,
+        ss.days_remaining,
 
-    const [cropCheck] = await db.execute(`
-      SELECT * FROM crop
+        c.growth_stage,
+        c.fertilizer_type,
+        c.expected_harvest_date,
+        c.estimated_yield
+
+      FROM suggested_schedule ss
+      LEFT JOIN crop c
+        ON LOWER(TRIM(ss.crop_id)) = LOWER(TRIM(c.crop_id))
+
+      ORDER BY ss.crop_id, ss.days_remaining ASC
     `);
 
-    const [scheduleCheck] = await db.execute(`
-      SELECT * FROM suggested_schedule
-    `);
-
-    return NextResponse.json({
-      success: true,
-      database: dbName.db,
-      crop_sample: cropCheck,
-      schedule_sample: scheduleCheck
-    });
+    return NextResponse.json(rows);
 
   } catch (error) {
-    console.error("GET ERROR:", error);
-
     return NextResponse.json(
-      {
-        success: false,
-        error: "Failed to fetch debug data",
-        message: error.message
-      },
+      { error: error.message },
       { status: 500 }
     );
   }
 }
-
 /* =========================
    POST - Generate schedule (ROBUST FIXED)
 ========================= */
