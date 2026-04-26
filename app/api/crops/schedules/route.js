@@ -10,39 +10,22 @@ export async function GET() {
         ss.application_schedule,
         ss.days_remaining,
 
-        c.growth_stage,
-        c.fertilizer_type,
-        c.expected_harvest_date,
-        c.estimated_yield
+        COALESCE(c.growth_stage, 'N/A') AS growth_stage,
+        COALESCE(c.fertilizer_type, 'N/A') AS fertilizer_type,
+        COALESCE(c.expected_harvest_date, 'N/A') AS expected_harvest_date,
+        COALESCE(c.estimated_yield, 'N/A') AS estimated_yield
 
       FROM suggested_schedule ss
       LEFT JOIN crop c
-        ON ss.crop_id = c.crop_id
+        ON LOWER(TRIM(ss.crop_id)) = LOWER(TRIM(c.crop_id))
+
       ORDER BY ss.crop_id, ss.days_remaining ASC
     `);
 
-    // HARD FIX: normalize everything in JS (this is the key)
-    const clean = rows.map(r => ({
-      suggested_schedule_id: r.suggested_schedule_id,
-      crop_id: r.crop_id,
-
-      application_schedule: r.application_schedule || 'Basal Application',
-
-      days_remaining: r.days_remaining,
-
-      growth_stage: r.growth_stage ?? 'N/A',
-      fertilizer_type: r.fertilizer_type ?? 'N/A',
-      expected_harvest_date: r.expected_harvest_date
-        ? new Date(r.expected_harvest_date).toISOString().split('T')[0]
-        : 'N/A',
-
-      estimated_yield: r.estimated_yield ?? 'N/A'
-    }));
-
-    return NextResponse.json(clean);
+    return NextResponse.json(rows);
 
   } catch (error) {
-    console.error("GET ERROR:", error);
+    console.error(error);
 
     return NextResponse.json(
       { error: error.message },
