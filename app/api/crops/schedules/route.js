@@ -2,7 +2,7 @@ import { db } from '@/lib/db';
 import { NextResponse } from 'next/server';
 
 /* =========================
-   GET - Fetch schedules (FIXED PROPER JOIN)
+   GET - Fetch schedules (FIXED)
 ========================= */
 export async function GET() {
   try {
@@ -13,13 +13,23 @@ export async function GET() {
         s.application_schedule,
         s.application_date,
         s.days_remaining,
-        c.fertilizer_type
+        COALESCE(c.fertilizer_type, 'N/A') AS fertilizer_type
       FROM suggested_schedule s
       LEFT JOIN crop c ON s.crop_id = c.crop_id
       ORDER BY s.suggested_schedule_id DESC
     `);
 
-    return NextResponse.json(rows || []);
+    // 🔥 FORCE SAFE OUTPUT (prevents blank UI)
+    const formatted = (rows || []).map(row => ({
+      schedule_id: row.suggested_schedule_id,
+      crop_id: row.crop_id ?? "N/A",
+      application_schedule: row.application_schedule ?? "N/A",
+      application_date: row.application_date ?? "N/A",
+      days_remaining: row.days_remaining ?? 0,
+      fertilizer_type: row.fertilizer_type ?? "N/A"
+    }));
+
+    return NextResponse.json(formatted);
 
   } catch (error) {
     console.error("SCHEDULE GET ERROR:", error);
@@ -35,12 +45,11 @@ export async function GET() {
 }
 
 /* =========================
-   POST - Generate schedule
+   POST - Generate schedule (FIXED)
 ========================= */
 export async function POST(request) {
   try {
-    const body = await request.json();
-    const crop_id = body.crop_id;
+    const { crop_id } = await request.json();
 
     if (!crop_id) {
       return NextResponse.json(
@@ -50,7 +59,7 @@ export async function POST(request) {
     }
 
     const [cropRows] = await db.execute(
-      `SELECT planting_date FROM crop WHERE crop_id = ?`,
+      `SELECT planting_date, fertilizer_type FROM crop WHERE crop_id = ?`,
       [crop_id]
     );
 
@@ -61,8 +70,8 @@ export async function POST(request) {
       );
     }
 
-    const planting_date = cropRows[0].planting_date;
-    const start = new Date(planting_date);
+    const start = new Date(cropRows[0].planting_date);
+    const fertilizerType = cropRows[0].fertilizer_type || "Urea";
 
     const tasks = [
       { name: 'Basal Application', days: 0 },
