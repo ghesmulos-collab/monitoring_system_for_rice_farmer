@@ -1,9 +1,6 @@
 import { db } from '@/lib/db';
 import { NextResponse } from 'next/server';
 
-/* =========================
-   GET - Fetch schedules (FIXED)
-========================= */
 export async function GET() {
   try {
     const [rows] = await db.execute(`
@@ -18,27 +15,20 @@ export async function GET() {
       ORDER BY suggested_schedule_id DESC
     `);
 
-    const formatted = (rows || []).map((row) => ({
-      schedule_id: row.suggested_schedule_id,
-      crop_id: row.crop_id ?? "N/A",
-      application_schedule: row.application_schedule ?? "N/A",
-      fertilizer_type: row.fertilizer_type ?? "N/A",
-      application_date: row.application_date ?? "N/A",
-      days_remaining: row.days_remaining ?? 0
-    }));
-
-    return NextResponse.json(formatted);
+    return NextResponse.json(rows || []);
 
   } catch (error) {
-    console.error("GET Schedule Error:", error);
+    console.error("SCHEDULE GET ERROR:", error);
 
     return NextResponse.json(
-      { error: "Failed to fetch schedules" },
+      {
+        error: "Failed to fetch schedules",
+        debug: error.message
+      },
       { status: 500 }
     );
   }
 }
-
 /* =========================
    POST - Generate schedule (FIXED)
 ========================= */
