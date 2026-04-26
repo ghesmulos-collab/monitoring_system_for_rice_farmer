@@ -228,7 +228,7 @@ const EditFarmerRecord: React.FC = () => {
 
       <section className="bg-white p-6 rounded-lg shadow-sm border border-gray-200">
         <h3 className="text-gray-700 font-bold text-sm mb-6 border-b pb-2">
-          {isEditing ? "Update Farmer Profile" : "Register New Farmer"}
+          {isEditing ? "Update Farmer Profile" : "Edit Farmer Record"}
         </h3>
 
         <div className="grid grid-cols-1 md:grid-cols-2 gap-x-8 gap-y-4">
