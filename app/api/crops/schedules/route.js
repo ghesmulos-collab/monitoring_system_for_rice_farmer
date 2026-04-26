@@ -2,32 +2,24 @@ import { db } from '@/lib/db';
 import { NextResponse } from 'next/server';
 
 /* =========================
-   GET - Fetch schedules (SAFE)
+   GET - Fetch schedules (FIXED PROPER JOIN)
 ========================= */
 export async function GET() {
   try {
     const [rows] = await db.execute(`
       SELECT 
-        suggested_schedule_id,
-        crop_id,
-        application_schedule,
-        fertilizer_type,
-        application_date,
-        days_remaining
-      FROM suggested_schedule
-      ORDER BY suggested_schedule_id DESC
+        s.suggested_schedule_id,
+        s.crop_id,
+        s.application_schedule,
+        s.application_date,
+        s.days_remaining,
+        c.fertilizer_type
+      FROM suggested_schedule s
+      LEFT JOIN crop c ON s.crop_id = c.crop_id
+      ORDER BY s.suggested_schedule_id DESC
     `);
 
-    const formatted = (rows || []).map((row) => ({
-      schedule_id: row.suggested_schedule_id,
-      crop_id: row.crop_id ?? "N/A",
-      application_schedule: row.application_schedule ?? "N/A",
-      fertilizer_type: row.fertilizer_type ?? "N/A",
-      application_date: row.application_date ?? "N/A",
-      days_remaining: row.days_remaining ?? 0
-    }));
-
-    return NextResponse.json(formatted);
+    return NextResponse.json(rows || []);
 
   } catch (error) {
     console.error("SCHEDULE GET ERROR:", error);
@@ -43,11 +35,12 @@ export async function GET() {
 }
 
 /* =========================
-   POST - Generate schedule (FIXED + SAFE)
+   POST - Generate schedule
 ========================= */
 export async function POST(request) {
   try {
-    const { crop_id } = await request.json();
+    const body = await request.json();
+    const crop_id = body.crop_id;
 
     if (!crop_id) {
       return NextResponse.json(
@@ -57,9 +50,7 @@ export async function POST(request) {
     }
 
     const [cropRows] = await db.execute(
-      `SELECT planting_date, fertilizer_type 
-       FROM crop 
-       WHERE crop_id = ?`,
+      `SELECT planting_date FROM crop WHERE crop_id = ?`,
       [crop_id]
     );
 
@@ -71,25 +62,16 @@ export async function POST(request) {
     }
 
     const planting_date = cropRows[0].planting_date;
-
-    // 🔥 SAFE FALLBACK
-    const baseFertilizer = cropRows[0].fertilizer_type || "Urea";
-
     const start = new Date(planting_date);
 
     const tasks = [
-      { name: 'Basal Application', days: 0, fertilizer: baseFertilizer },
-      { name: 'First Top Dress', days: 15, fertilizer: 'Urea' },
-      { name: 'Second Top Dress', days: 35, fertilizer: 'Ammonium Sulfate' },
-      { name: 'Harvesting', days: 110, fertilizer: 'Potassium' }
+      { name: 'Basal Application', days: 0 },
+      { name: 'First Top Dress', days: 15 },
+      { name: 'Second Top Dress', days: 35 },
+      { name: 'Harvesting', days: 110 }
     ];
 
     for (const task of tasks) {
-
-      // 🔥 FORCE VALID VALUES (PREVENT NULL)
-      const application_schedule = task.name || "Basal Application";
-      const fertilizer = task.fertilizer || "Urea";
-
       const appDate = new Date(start);
       appDate.setDate(start.getDate() + task.days);
 
@@ -97,13 +79,12 @@ export async function POST(request) {
 
       await db.execute(
         `INSERT INTO suggested_schedule
-         (application_schedule, fertilizer_type, application_date, days_remaining, crop_id)
-         VALUES (?, ?, ?, ?, ?)`,
+         (application_schedule, application_date, days_remaining, crop_id)
+         VALUES (?, ?, ?, ?)`,
         [
-          application_schedule,
-          fertilizer,
+          task.name,
           formattedDate,
-          task.days ?? 0,
+          task.days,
           crop_id
         ]
       );
@@ -117,10 +98,7 @@ export async function POST(request) {
     console.error("POST Schedule Error:", error);
 
     return NextResponse.json(
-      {
-        error: "Failed to create schedule",
-        debug: error.message
-      },
+      { error: "Failed to create schedule" },
       { status: 500 }
     );
   }
