@@ -3,6 +3,10 @@ import { NextResponse } from 'next/server';
 
 export async function GET() {
   try {
+    // 1. Check DB name (VERY IMPORTANT)
+    const [dbInfo] = await db.execute(`SELECT DATABASE() AS db_name`);
+
+    // 2. Force simple join check
     const [rows] = await db.execute(`
       SELECT 
         ss.suggested_schedule_id,
@@ -10,22 +14,21 @@ export async function GET() {
         ss.application_schedule,
         ss.days_remaining,
 
-        COALESCE(c.growth_stage, 'N/A') AS growth_stage,
-        COALESCE(c.expected_harvest_date, 'N/A') AS expected_harvest_date,
-        COALESCE(c.estimated_yield, 'N/A') AS estimated_yield
+        c.growth_stage,
+        c.expected_harvest_date,
+        c.estimated_yield
 
       FROM suggested_schedule ss
       LEFT JOIN crop c
-        ON LOWER(TRIM(ss.crop_id)) = LOWER(TRIM(c.crop_id))
-
-      ORDER BY ss.crop_id ASC, ss.days_remaining ASC
+        ON ss.crop_id = c.crop_id
     `);
 
-    return NextResponse.json(rows);
+    return NextResponse.json({
+      database: dbInfo[0].db_name,
+      sample: rows
+    });
 
   } catch (error) {
-    console.error("SCHEDULE GET ERROR:", error);
-
     return NextResponse.json(
       {
         error: "Failed to fetch schedules",
