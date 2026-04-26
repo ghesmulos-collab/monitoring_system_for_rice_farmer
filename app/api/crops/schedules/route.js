@@ -10,41 +10,42 @@ export async function GET() {
         ss.application_schedule,
         ss.days_remaining,
 
-        c.growth_stage AS crop_growth_stage,
-        c.fertilizer_type AS crop_fertilizer_type,
-        c.expected_harvest_date AS crop_expected_harvest_date,
-        c.estimated_yield AS crop_estimated_yield
+        c.growth_stage,
+        c.fertilizer_type,
+        c.expected_harvest_date,
+        c.estimated_yield
 
       FROM suggested_schedule ss
       LEFT JOIN crop c
-        ON LOWER(TRIM(ss.crop_id)) = LOWER(TRIM(c.crop_id))
-
-      ORDER BY ss.crop_id ASC, ss.days_remaining ASC
+        ON ss.crop_id = c.crop_id
+      ORDER BY ss.crop_id, ss.days_remaining ASC
     `);
 
-    // map clean output so frontend NEVER gets confused
-    const formatted = rows.map(r => ({
+    // HARD FIX: normalize everything in JS (this is the key)
+    const clean = rows.map(r => ({
       suggested_schedule_id: r.suggested_schedule_id,
       crop_id: r.crop_id,
-      application_schedule: r.application_schedule ?? 'Unknown Task',
+
+      application_schedule: r.application_schedule || 'Basal Application',
+
       days_remaining: r.days_remaining,
 
-      growth_stage: r.crop_growth_stage ?? 'N/A',
-      fertilizer_type: r.crop_fertilizer_type ?? 'N/A',
-      expected_harvest_date: r.crop_expected_harvest_date ?? 'N/A',
-      estimated_yield: r.crop_estimated_yield ?? 'N/A'
+      growth_stage: r.growth_stage ?? 'N/A',
+      fertilizer_type: r.fertilizer_type ?? 'N/A',
+      expected_harvest_date: r.expected_harvest_date
+        ? new Date(r.expected_harvest_date).toISOString().split('T')[0]
+        : 'N/A',
+
+      estimated_yield: r.estimated_yield ?? 'N/A'
     }));
 
-    return NextResponse.json(formatted);
+    return NextResponse.json(clean);
 
   } catch (error) {
     console.error("GET ERROR:", error);
 
     return NextResponse.json(
-      {
-        error: "Failed to fetch schedules",
-        debug: error.message
-      },
+      { error: error.message },
       { status: 500 }
     );
   }
