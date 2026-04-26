@@ -8,31 +8,40 @@ export async function GET() {
         s.suggested_schedule_id,
         s.crop_id,
         s.application_schedule,
+        s.application_date,
         s.days_remaining,
-        COALESCE(c.fertilizer_type, 'N/A') AS fertilizer_type
+
+        c.growth_stage,
+        c.fertilizer_type,
+        c.expected_harvest_date,
+        c.estimated_yield
+
       FROM suggested_schedule s
       LEFT JOIN crop c ON s.crop_id = c.crop_id
-      ORDER BY s.suggested_schedule_id DESC
+      ORDER BY s.crop_id, s.days_remaining ASC
     `);
 
-    const formatted = (rows || []).map(row => ({
-      schedule_id: row.suggested_schedule_id,
-      crop_id: row.crop_id,
-      application_schedule: row.application_schedule,
-      fertilizer_type: row.fertilizer_type,
-      days_remaining: row.days_remaining
+    const formatted = (rows || []).map(r => ({
+      schedule_id: r.suggested_schedule_id,
+      crop_id: r.crop_id,
+
+      growth_stage: r.growth_stage ?? "N/A",
+      fertilizer_type: r.fertilizer_type ?? "N/A",
+      application_schedule: r.application_schedule ?? "N/A",
+
+      expected_harvest_date: r.expected_harvest_date ?? "N/A",
+      estimated_yield: r.estimated_yield ?? "N/A",
+
+      days_remaining: r.days_remaining ?? 0
     }));
 
     return NextResponse.json(formatted);
 
   } catch (error) {
-    console.error("SCHEDULE GET ERROR:", error);
+    console.error("SCHEDULE ERROR:", error);
 
     return NextResponse.json(
-      {
-        error: "Failed to fetch schedules",
-        debug: error.message
-      },
+      { error: "Failed to fetch schedules", debug: error.message },
       { status: 500 }
     );
   }
