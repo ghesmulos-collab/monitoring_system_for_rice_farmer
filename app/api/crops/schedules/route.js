@@ -3,39 +3,22 @@ import { NextResponse } from 'next/server';
 
 export async function GET() {
   try {
-    // 1. Check DB name (VERY IMPORTANT)
-    const [dbInfo] = await db.execute(`SELECT DATABASE() AS db_name`);
+    const [dbName] = await db.execute(`SELECT DATABASE() AS db`);
 
-    // 2. Force simple join check
-    const [rows] = await db.execute(`
-      SELECT 
-        ss.suggested_schedule_id,
-        ss.crop_id,
-        ss.application_schedule,
-        ss.days_remaining,
+    const [cropCheck] = await db.execute(`SELECT * FROM crop`);
 
-        c.growth_stage,
-        c.expected_harvest_date,
-        c.estimated_yield
-
-      FROM suggested_schedule ss
-      LEFT JOIN crop c
-        ON ss.crop_id = c.crop_id
-    `);
+    const [scheduleCheck] = await db.execute(`SELECT * FROM suggested_schedule`);
 
     return NextResponse.json({
-      database: dbInfo[0].db_name,
-      sample: rows
+      database: dbName[0].db,
+      crop_sample: cropCheck,
+      schedule_sample: scheduleCheck
     });
 
   } catch (error) {
-    return NextResponse.json(
-      {
-        error: "Failed to fetch schedules",
-        debug: error.message
-      },
-      { status: 500 }
-    );
+    return NextResponse.json({
+      error: error.message
+    });
   }
 }
 /* =========================
