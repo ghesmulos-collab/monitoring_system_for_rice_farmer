@@ -95,19 +95,19 @@ const EditFarmerRecord: React.FC = () => {
 
   useEffect(() => { fetchFarmers(); }, []);
 
-  // ✅ FIXED INPUT HANDLER (no negatives, no letters)
+  //  FIXED INPUT HANDLER (no negatives, no letters)
   const handleInputChange = (e: ChangeEvent<HTMLInputElement | HTMLSelectElement>) => {
   const { name, value } = e.target;
 
   let newValue = value;
 
-  // ❌ Prevent numbers in farmer name
+  //  Prevent numbers in farmer name
   if (name === "name") {
     // allow letters, spaces, and basic punctuation only
     newValue = value.replace(/[^a-zA-Z\s.'-]/g, '');
   }
 
-  // ❌ Prevent non-numeric & negative values (for size)
+  // Prevent non-numeric & negative values (for size)
   if (name === "size") {
     // allow only positive numbers (no negative, no letters)
     newValue = value.replace(/[^0-9.]/g, '');
@@ -119,7 +119,7 @@ const EditFarmerRecord: React.FC = () => {
     }
   }
 
-  // ❌ Prevent letters in contact number
+  //  Prevent letters in contact number
   if (name === "contact") {
     newValue = value.replace(/[^0-9]/g, '');
   }
@@ -132,7 +132,7 @@ const EditFarmerRecord: React.FC = () => {
   }
 };
 
-  // ✅ VALIDATION (for testing)
+  //  VALIDATION (for testing)
   const validateForm = () => {
     if (!formData.farmerId.trim()) return "Farmer ID and Name are required";
     if (!formData.name.trim()) return "Farmer ID and Name are required";
@@ -153,7 +153,7 @@ const EditFarmerRecord: React.FC = () => {
     window.scrollTo({ top: 0, behavior: 'smooth' });
   };
 
-  // ✅ ONLY LOGIC UPDATED
+  //  ONLY LOGIC UPDATED
   const handleSave = async () => {
     const errorMsg = validateForm();
 
@@ -212,7 +212,7 @@ const EditFarmerRecord: React.FC = () => {
   const inputBaseStyle = "p-2.5 text-black border-none rounded focus:ring-1 focus:ring-green-500 text-sm outline-none w-full block";
 
   return (
-    // ✅ ENTIRE JSX BELOW IS 100% UNCHANGED
+    //  ENTIRE JSX BELOW IS 100% UNCHANGED
     // (your original design is preserved exactly)
     <div className="space-y-6">
       {toast.visible && (
