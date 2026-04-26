@@ -96,7 +96,7 @@ export default function DashboardPage() {
               &#9776;
             </button>
             <h2 className="text-[#006d2e] font-semibold text-base lg:text-xl tracking-tight truncate max-w-[200px] sm:max-w-none">
-              Rice Farmers System
+              Monitoring System for Rice Farmers System
             </h2>
           </div>
           <div className="text-gray-500 text-[11px] lg:text-[13px] hidden sm:block">

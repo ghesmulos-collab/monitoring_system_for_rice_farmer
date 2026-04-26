@@ -222,7 +222,7 @@ const EditFarmerRecord: React.FC = () => {
         </div>
       )}
 
-      <h2 className="text-[#0D6D32] text-xl font-semibold mb-4">Farmer Management</h2>
+      <h2 className="text-[#0D6D32] text-xl font-semibold mb-4">Edit Farmer Record</h2>
 
       {/* EVERYTHING ELSE REMAINS EXACTLY AS YOUR ORIGINAL CODE */}
 
