@@ -2,7 +2,7 @@ import { db } from '@/lib/db';
 import { NextResponse } from 'next/server';
 
 // ==========================
-// GET
+// GET - Fetch Crops (UNCHANGED)
 // ==========================
 export async function GET(request) {
   try {
@@ -15,7 +15,7 @@ export async function GET(request) {
       u.actual_yield,
       r.total_production, r.total_yield AS report_yield
     `;
-    
+
     const joinLogic = `
       FROM crop c
       LEFT JOIN update_actual_yield u ON c.crop_id = u.crop_id
@@ -24,7 +24,7 @@ export async function GET(request) {
 
     if (cropId) {
       const [rows] = await db.execute(
-        `SELECT ${selectFields} ${joinLogic} WHERE c.crop_id = ? LIMIT 1`, 
+        `SELECT ${selectFields} ${joinLogic} WHERE c.crop_id = ? LIMIT 1`,
         [cropId]
       );
 
@@ -46,7 +46,7 @@ export async function GET(request) {
     return NextResponse.json(rows || []);
 
   } catch (error) {
-    console.error("Fetch Error:", error);
+    console.error("GET Crop Error:", error.message);
 
     return NextResponse.json(
       { error: error?.message || "Server error" },
@@ -55,25 +55,31 @@ export async function GET(request) {
   }
 }
 
-
 // ==========================
-// POST
+// POST - Create Crop + AUTO Notification (FIXED)
 // ==========================
 export async function POST(request) {
-  let body; // ✅ fix for catch access
-
   try {
-    body = await request.json();
+    const body = await request.json();
 
     const {
-      cropId, productionCost, plantingDate, seedType, 
-      growthStage, fertilizerType, quantityApplied, 
-      applicationDate, irrigationMethod, expectedHarvest, 
-      estimatedYield, marketPrice, farmerId 
+      cropId,
+      productionCost,
+      plantingDate,
+      seedType,
+      growthStage,
+      fertilizerType,
+      quantityApplied,
+      applicationDate,
+      irrigationMethod,
+      expectedHarvest,
+      estimatedYield,
+      marketPrice,
+      farmerId
     } = body;
 
     // =====================
-    // ✅ VALIDATION
+    // VALIDATION
     // =====================
     if (!cropId) {
       return NextResponse.json(
@@ -83,58 +89,74 @@ export async function POST(request) {
     }
 
     // =====================
-    // CLEAN NUMBER
+    // CLEAN NUMBER FUNCTION
     // =====================
     const cleanNumber = (val) => {
       if (val === undefined || val === null || val === '') return 0;
-      const cleaned = String(val).replace(/[^0-9.]/g, '');
-
-      const num = parseFloat(cleaned);
-      return isNaN(num) || num < 0 ? 0 : num; // ✅ prevent negative
+      const num = parseFloat(String(val).replace(/[^0-9.]/g, ''));
+      return isNaN(num) ? 0 : num;
     };
 
     const sqlVal = (val) =>
       val === undefined || val === '' ? null : val;
 
-    const query = `
+    // =====================
+    // 1. INSERT CROP
+    // =====================
+    const cropInsertQuery = `
       INSERT INTO crop (
-        crop_id, production_cost, planting_date, seed_type, 
-        growth_stage, fertilizer_type, quantity_applied, 
-        application_date, irrigation_method, expected_harvest_date, 
+        crop_id, production_cost, planting_date, seed_type,
+        growth_stage, fertilizer_type, quantity_applied,
+        application_date, irrigation_method, expected_harvest_date,
         estimated_yield, market_price, farmer_id
       ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
     `;
 
-    const values = [
-      sqlVal(cropId), 
-      cleanNumber(productionCost), 
-      sqlVal(plantingDate), 
-      sqlVal(seedType), 
-      sqlVal(growthStage), 
-      sqlVal(fertilizerType), 
-      sqlVal(quantityApplied), 
-      sqlVal(applicationDate), 
-      sqlVal(irrigationMethod), 
-      sqlVal(expectedHarvest), 
+    const cropValues = [
+      sqlVal(cropId),
+      cleanNumber(productionCost),
+      sqlVal(plantingDate),
+      sqlVal(seedType),
+      sqlVal(growthStage),
+      sqlVal(fertilizerType),
+      sqlVal(quantityApplied),
+      sqlVal(applicationDate),
+      sqlVal(irrigationMethod),
+      sqlVal(expectedHarvest),
       cleanNumber(estimatedYield),
       cleanNumber(marketPrice),
       sqlVal(farmerId || 'F-001')
     ];
 
-    await db.execute(query, values);
+    await db.execute(cropInsertQuery, cropValues);
+
+    // =====================
+    // 2. AUTO CREATE NOTIFICATION 🔥 FIX
+    // =====================
+    const notificationMessage = `Plan created for Crop ${cropId}. Schedule basal fertilizer application.`;
+
+    await db.execute(
+      `INSERT INTO fertilizer_notification 
+        (recommended_fertilizer, notification_message, crop_id)
+       VALUES (?, ?, ?)`,
+      [
+        fertilizerType || 'N/A',
+        notificationMessage,
+        cropId
+      ]
+    );
 
     return NextResponse.json(
-      { message: "Crop record saved successfully" },
+      { message: "Crop created and notification generated successfully" },
       { status: 201 }
     );
 
   } catch (error) {
-    console.error("Database Insert Error:", error);
+    console.error("POST Crop Error:", error.message);
 
-    // ✅ FIX: avoid crash if body undefined
     if (error.code === 'ER_DUP_ENTRY') {
       return NextResponse.json(
-        { error: `Crop ID already exists. Use a unique ID.` },
+        { error: "Crop ID already exists" },
         { status: 409 }
       );
     }
@@ -146,15 +168,13 @@ export async function POST(request) {
   }
 }
 
-
 // ==========================
-// PUT: Update Actual Yield
+// PUT - Update Actual Yield (UNCHANGED)
 // ==========================
 export async function PUT(request) {
   try {
     const { cropId, actualYield } = await request.json();
 
-    // ✅ VALIDATION
     if (!cropId || actualYield === undefined) {
       return NextResponse.json(
         { error: "Missing required fields" },
@@ -169,13 +189,12 @@ export async function PUT(request) {
       );
     }
 
-    const query = `
-      INSERT INTO update_actual_yield (actual_yield, crop_id) 
-      VALUES (?, ?) 
-      ON DUPLICATE KEY UPDATE actual_yield = VALUES(actual_yield)
-    `;
-
-    await db.execute(query, [Number(actualYield), cropId]);
+    await db.execute(
+      `INSERT INTO update_actual_yield (actual_yield, crop_id)
+       VALUES (?, ?)
+       ON DUPLICATE KEY UPDATE actual_yield = VALUES(actual_yield)`,
+      [Number(actualYield), cropId]
+    );
 
     return NextResponse.json(
       { message: "Actual yield updated successfully" },
@@ -183,7 +202,7 @@ export async function PUT(request) {
     );
 
   } catch (error) {
-    console.error("Database Update Error:", error);
+    console.error("PUT Crop Error:", error.message);
 
     return NextResponse.json(
       { error: error?.message || "Server error" },

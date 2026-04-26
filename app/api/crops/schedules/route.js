@@ -2,22 +2,36 @@ import { db } from '@/lib/db';
 import { NextResponse } from 'next/server';
 
 /* =========================
-   GET - Fetch schedules
+   GET - Fetch schedules (FIXED)
 ========================= */
 export async function GET() {
     try {
         const [rows] = await db.execute(`
             SELECT 
                 schedule_id,
+                crop_id,
+
                 application_schedule,
                 fertilizer_type,
+
                 application_date,
-                days_remaining,
-                crop_id
+                days_remaining
+
             FROM suggested_schedule
+            ORDER BY schedule_id DESC
         `);
 
-        return NextResponse.json(rows);
+        // 🔥 FIX: ensure NO NULL values reach frontend
+        const formatted = rows.map((row) => ({
+            schedule_id: row.schedule_id,
+            crop_id: row.crop_id || "N/A",
+            application_schedule: row.application_schedule || "N/A",
+            fertilizer_type: row.fertilizer_type || "N/A",
+            application_date: row.application_date || "N/A",
+            days_remaining: row.days_remaining ?? 0
+        }));
+
+        return NextResponse.json(formatted);
 
     } catch (error) {
         console.error("GET Schedule Error:", error.message);
@@ -29,7 +43,7 @@ export async function GET() {
 }
 
 /* =========================
-   POST - Generate schedule
+   POST - Generate schedule (FIXED)
 ========================= */
 export async function POST(request) {
     try {
@@ -51,17 +65,16 @@ export async function POST(request) {
 
         const planting_date = cropRows[0].planting_date;
 
-        // 🔥 FIX: always ensure valid fertilizer (NO NULL, NO N/A)
+        // 🔥 FIX: fallback fertilizer
         const baseFertilizer = cropRows[0].fertilizer_type || "Urea";
 
         const start = new Date(planting_date);
 
-        // 🔥 FIXED TASKS (NO 'N/A' ANYMORE)
         const tasks = [
             { name: 'Basal Application', days: 0, fertilizer: baseFertilizer },
             { name: 'First Top Dress', days: 15, fertilizer: 'Urea' },
             { name: 'Second Top Dress', days: 35, fertilizer: 'Ammonium Sulfate' },
-            { name: 'Harvesting', days: 110, fertilizer: baseFertilizer }
+            { name: 'Harvesting', days: 110, fertilizer: 'Potassium' }
         ];
 
         for (const task of tasks) {
@@ -84,7 +97,9 @@ export async function POST(request) {
             );
         }
 
-        return NextResponse.json({ message: "Schedule Created Successfully" });
+        return NextResponse.json({
+            message: "Schedule Created Successfully"
+        });
 
     } catch (error) {
         console.error("POST Schedule Error:", error.message);
