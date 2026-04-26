@@ -7,24 +7,24 @@ export async function GET() {
       SELECT 
         ss.suggested_schedule_id,
         ss.crop_id,
-        ss.application_schedule,
-        ss.days_remaining,
 
         c.growth_stage,
+        c.fertilizer_type,
         c.expected_harvest_date,
-        c.estimated_yield
+        c.estimated_yield,
+
+        ss.application_schedule,
+        ss.days_remaining
 
       FROM suggested_schedule ss
-      INNER JOIN crop c
-        ON LOWER(ss.crop_id) = LOWER(c.crop_id)
-
-      ORDER BY ss.crop_id ASC, ss.days_remaining ASC
+      JOIN crop c ON ss.crop_id = c.crop_id
+      ORDER BY ss.crop_id, ss.days_remaining ASC
     `);
 
     return NextResponse.json(rows);
 
   } catch (error) {
-    console.error("GET Schedule Error:", error);
+    console.error("SCHEDULE GET ERROR:", error);
 
     return NextResponse.json(
       {
