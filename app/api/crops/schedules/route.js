@@ -1,9 +1,6 @@
 import { db } from '@/lib/db';
 import { NextResponse } from 'next/server';
 
-/* =========================
-   GET - Fetch schedules (FIXED)
-========================= */
 export async function GET() {
   try {
     const [rows] = await db.execute(`
@@ -11,7 +8,6 @@ export async function GET() {
         s.suggested_schedule_id,
         s.crop_id,
         s.application_schedule,
-        s.application_date,
         s.days_remaining,
         COALESCE(c.fertilizer_type, 'N/A') AS fertilizer_type
       FROM suggested_schedule s
@@ -19,14 +15,12 @@ export async function GET() {
       ORDER BY s.suggested_schedule_id DESC
     `);
 
-    // 🔥 FORCE SAFE OUTPUT (prevents blank UI)
     const formatted = (rows || []).map(row => ({
       schedule_id: row.suggested_schedule_id,
-      crop_id: row.crop_id ?? "N/A",
-      application_schedule: row.application_schedule ?? "N/A",
-      application_date: row.application_date ?? "N/A",
-      days_remaining: row.days_remaining ?? 0,
-      fertilizer_type: row.fertilizer_type ?? "N/A"
+      crop_id: row.crop_id,
+      application_schedule: row.application_schedule,
+      fertilizer_type: row.fertilizer_type,
+      days_remaining: row.days_remaining
     }));
 
     return NextResponse.json(formatted);
