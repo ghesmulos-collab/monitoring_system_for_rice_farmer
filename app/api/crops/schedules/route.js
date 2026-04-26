@@ -2,7 +2,7 @@ import { db } from '@/lib/db';
 import { NextResponse } from 'next/server';
 
 /* =========================
-   GET - Fetch schedules (FIXED + SAFE)
+   GET - Fetch schedules (SAFE)
 ========================= */
 export async function GET() {
     try {
@@ -18,22 +18,14 @@ export async function GET() {
             ORDER BY schedule_id DESC
         `);
 
-        // ✅ ALWAYS return array (even if empty)
-        if (!rows || rows.length === 0) {
-            return NextResponse.json([]);
-        }
-
-        // 🔥 FORMAT SAFE OUTPUT
-        const formatted = rows.map((row) => ({
+        // ALWAYS return array
+        const formatted = (rows || []).map((row) => ({
             schedule_id: row.schedule_id,
-            crop_id: row.crop_id ?? "N/A",
-            application_schedule: row.application_schedule ?? "N/A",
-            fertilizer_type: row.fertilizer_type ?? "N/A",
-            application_date: row.application_date ?? "N/A",
-            days_remaining:
-                row.days_remaining !== null && row.days_remaining !== undefined
-                    ? row.days_remaining
-                    : 0
+            crop_id: row.crop_id || "N/A",
+            application_schedule: row.application_schedule || "N/A",
+            fertilizer_type: row.fertilizer_type || "N/A",
+            application_date: row.application_date || "N/A",
+            days_remaining: row.days_remaining ?? 0
         }));
 
         return NextResponse.json(formatted);
@@ -49,7 +41,7 @@ export async function GET() {
 }
 
 /* =========================
-   POST - Generate schedule (FIXED + SAFE)
+   POST - Generate schedule (FIXED AT SOURCE 🔥)
 ========================= */
 export async function POST(request) {
     try {
@@ -90,6 +82,11 @@ export async function POST(request) {
         ];
 
         for (const task of tasks) {
+
+            // 🔥 FIX: GUARANTEE VALID STRING
+            const application_schedule = task.name || "Unknown Schedule";
+            const fertilizer = task.fertilizer || "Urea";
+
             const appDate = new Date(start);
             appDate.setDate(start.getDate() + task.days);
 
@@ -100,10 +97,10 @@ export async function POST(request) {
                  (application_schedule, fertilizer_type, application_date, days_remaining, crop_id)
                  VALUES (?, ?, ?, ?, ?)`,
                 [
-                    task.name,
-                    task.fertilizer,
+                    application_schedule,
+                    fertilizer,
                     formattedDate,
-                    task.days,
+                    task.days ?? 0,
                     crop_id
                 ]
             );
