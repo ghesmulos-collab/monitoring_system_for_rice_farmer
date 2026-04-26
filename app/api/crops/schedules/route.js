@@ -7,26 +7,32 @@ export async function GET() {
       SELECT 
         ss.suggested_schedule_id,
         ss.crop_id,
-        ss.application_schedule,
+
+        -- FIX: fallback for NULL schedule values
+        COALESCE(ss.application_schedule, 'Unknown Task') AS application_schedule,
+
         ss.days_remaining,
 
-        c.growth_stage,
-        c.fertilizer_type,
-        c.expected_harvest_date,
-        c.estimated_yield
+        COALESCE(c.growth_stage, 'N/A') AS growth_stage,
+        COALESCE(c.fertilizer_type, 'N/A') AS fertilizer_type,
+        COALESCE(c.expected_harvest_date, 'N/A') AS expected_harvest_date,
+        COALESCE(c.estimated_yield, 'N/A') AS estimated_yield
 
       FROM suggested_schedule ss
       LEFT JOIN crop c
         ON LOWER(TRIM(ss.crop_id)) = LOWER(TRIM(c.crop_id))
 
-      ORDER BY ss.crop_id, ss.days_remaining ASC
+      ORDER BY ss.crop_id ASC, ss.days_remaining ASC
     `);
 
     return NextResponse.json(rows);
 
   } catch (error) {
     return NextResponse.json(
-      { error: error.message },
+      {
+        error: "Failed to fetch schedules",
+        debug: error.message
+      },
       { status: 500 }
     );
   }
