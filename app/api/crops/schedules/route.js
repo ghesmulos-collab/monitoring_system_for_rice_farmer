@@ -1,6 +1,9 @@
 import { db } from '@/lib/db';
 import { NextResponse } from 'next/server';
 
+/* =========================
+   GET - Fetch schedules (SAFE)
+========================= */
 export async function GET() {
   try {
     const [rows] = await db.execute(`
@@ -15,7 +18,16 @@ export async function GET() {
       ORDER BY suggested_schedule_id DESC
     `);
 
-    return NextResponse.json(rows || []);
+    const formatted = (rows || []).map((row) => ({
+      schedule_id: row.suggested_schedule_id,
+      crop_id: row.crop_id ?? "N/A",
+      application_schedule: row.application_schedule ?? "N/A",
+      fertilizer_type: row.fertilizer_type ?? "N/A",
+      application_date: row.application_date ?? "N/A",
+      days_remaining: row.days_remaining ?? 0
+    }));
+
+    return NextResponse.json(formatted);
 
   } catch (error) {
     console.error("SCHEDULE GET ERROR:", error);
@@ -29,13 +41,13 @@ export async function GET() {
     );
   }
 }
+
 /* =========================
-   POST - Generate schedule (FIXED)
+   POST - Generate schedule (FIXED + SAFE)
 ========================= */
 export async function POST(request) {
   try {
-    const body = await request.json();
-    const crop_id = body.crop_id;
+    const { crop_id } = await request.json();
 
     if (!crop_id) {
       return NextResponse.json(
@@ -59,6 +71,8 @@ export async function POST(request) {
     }
 
     const planting_date = cropRows[0].planting_date;
+
+    // 🔥 SAFE FALLBACK
     const baseFertilizer = cropRows[0].fertilizer_type || "Urea";
 
     const start = new Date(planting_date);
@@ -71,6 +85,11 @@ export async function POST(request) {
     ];
 
     for (const task of tasks) {
+
+      // 🔥 FORCE VALID VALUES (PREVENT NULL)
+      const application_schedule = task.name || "Basal Application";
+      const fertilizer = task.fertilizer || "Urea";
+
       const appDate = new Date(start);
       appDate.setDate(start.getDate() + task.days);
 
@@ -81,10 +100,10 @@ export async function POST(request) {
          (application_schedule, fertilizer_type, application_date, days_remaining, crop_id)
          VALUES (?, ?, ?, ?, ?)`,
         [
-          task.name,
-          task.fertilizer,
+          application_schedule,
+          fertilizer,
           formattedDate,
-          task.days,
+          task.days ?? 0,
           crop_id
         ]
       );
@@ -98,7 +117,10 @@ export async function POST(request) {
     console.error("POST Schedule Error:", error);
 
     return NextResponse.json(
-      { error: "Failed to create schedule" },
+      {
+        error: "Failed to create schedule",
+        debug: error.message
+      },
       { status: 500 }
     );
   }
