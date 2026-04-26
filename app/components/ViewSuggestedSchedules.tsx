@@ -31,19 +31,26 @@ const ViewSuggestedSchedules: React.FC = () => {
 
         if (Array.isArray(data)) {
           const userSchedules = data.map((item: any) => {
-            const harvestDate = new Date(); // unchanged logic
+            const harvestDate = new Date(item.expected_harvest_date);
             const today = new Date();
             const diffTime = harvestDate.getTime() - today.getTime();
             const diffDays = Math.ceil(diffTime / (1000 * 60 * 60 * 24));
 
             return {
-              id: item.suggested_schedule_id || item.schedule_id || item.crop_id,
+              id: item.suggested_schedule_id || item.crop_id,
+
               crop_id: item.crop_id,
-              growth_stage: "N/A",
+
+              growth_stage: item.growth_stage || "N/A",
               fertilizer_type: item.fertilizer_type || "N/A",
               application_schedule: item.application_schedule || "N/A",
-              expected_harvest_date: "N/A",
-              estimated_yield: "N/A",
+
+              expected_harvest_date: item.expected_harvest_date
+                ? new Date(item.expected_harvest_date).toISOString().split('T')[0]
+                : "N/A",
+
+              estimated_yield: item.estimated_yield || "N/A",
+
               days_remaining: item.days_remaining ?? diffDays ?? 0
             };
           });
