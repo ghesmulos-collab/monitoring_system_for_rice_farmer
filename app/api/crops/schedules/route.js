@@ -6,21 +6,27 @@ export async function POST(request) {
         const { crop_id, planting_date } = await request.json();
         const start = new Date(planting_date);
 
-        // Define tasks based on your ERD requirements
         const tasks = [
-            { name: 'Basal Application', days: 0 },
-            { name: 'First Top Dress', days: 15 },
-            { name: 'Second Top Dress', days: 35 },
-            { name: 'Harvesting', days: 110 }
+            { name: 'Basal Application', days: 0, fertilizer: 'Complete Fertilizer (14-14-14)' },
+            { name: 'First Top Dress', days: 15, fertilizer: 'Urea' },
+            { name: 'Second Top Dress', days: 35, fertilizer: 'Ammonium Sulfate' },
+            { name: 'Harvesting', days: 110, fertilizer: 'N/A' }
         ];
 
         for (const task of tasks) {
-            // Use the exact column names from your phpMyAdmin
+            const appDate = new Date(start);
+            appDate.setDate(start.getDate() + task.days);
+
+            const formattedDate = appDate.toISOString().split('T')[0];
+
             await db.execute(
-                "INSERT INTO suggested_schedule (application_schedule, days_remaining, crop_id) VALUES (?, ?, ?)",
-                [task.name, task.days, crop_id]
+                `INSERT INTO suggested_schedule 
+                (application_schedule, fertilizer_type, application_date, days_remaining, crop_id) 
+                VALUES (?, ?, ?, ?, ?)`,
+                [task.name, task.fertilizer, formattedDate, task.days, crop_id]
             );
         }
+
         return NextResponse.json({ message: "Schedule Created" });
     } catch (error) {
         console.error("Schedule Error:", error.message);
