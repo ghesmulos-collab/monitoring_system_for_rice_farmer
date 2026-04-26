@@ -2,31 +2,19 @@ import { db } from '@/lib/db';
 import { NextResponse } from 'next/server';
 
 /* =========================
-   GET - View Suggested Schedules (FIXED)
+   GET - Fetch schedules
 ========================= */
 export async function GET() {
     try {
         const [rows] = await db.execute(`
             SELECT 
-                schedule_id AS id,
-                crop_id,
-                growth_stage,
-
-                -- FIX: ensure consistent fertilizer display
-                COALESCE(fertilizer_type, 'Urea') AS fertilizer_type,
-
+                schedule_id,
                 application_schedule,
-
-                -- FIX: prevent null date issues
-                COALESCE(application_date, 'N/A') AS application_date,
-
-                -- FIX: safe numeric fallback
-                COALESCE(estimated_yield, 0) AS estimated_yield,
-
-                COALESCE(days_remaining, 0) AS days_remaining
-
+                fertilizer_type,
+                application_date,
+                days_remaining,
+                crop_id
             FROM suggested_schedule
-            ORDER BY schedule_id DESC
         `);
 
         return NextResponse.json(rows);
@@ -41,7 +29,7 @@ export async function GET() {
 }
 
 /* =========================
-   POST - Generate Schedule (SAFE FIXED)
+   POST - Generate schedule
 ========================= */
 export async function POST(request) {
     try {
@@ -63,49 +51,40 @@ export async function POST(request) {
 
         const planting_date = cropRows[0].planting_date;
 
-        // FIX: prevent NULL fertilizer
-        const baseFertilizer = cropRows[0].fertilizer_type || 'Urea';
+        // 🔥 FIX: always ensure valid fertilizer (NO NULL, NO N/A)
+        const baseFertilizer = cropRows[0].fertilizer_type || "Urea";
 
         const start = new Date(planting_date);
 
+        // 🔥 FIXED TASKS (NO 'N/A' ANYMORE)
         const tasks = [
-            { stage: 'Basal Application', days: 0, fertilizer: baseFertilizer },
-            { stage: 'First Top Dress', days: 15, fertilizer: 'Urea' },
-            { stage: 'Second Top Dress', days: 35, fertilizer: 'Ammonium Sulfate' },
-            { stage: 'Harvesting', days: 110, fertilizer: baseFertilizer }
+            { name: 'Basal Application', days: 0, fertilizer: baseFertilizer },
+            { name: 'First Top Dress', days: 15, fertilizer: 'Urea' },
+            { name: 'Second Top Dress', days: 35, fertilizer: 'Ammonium Sulfate' },
+            { name: 'Harvesting', days: 110, fertilizer: baseFertilizer }
         ];
 
         for (const task of tasks) {
-            const date = new Date(start);
-            date.setDate(start.getDate() + task.days);
+            const appDate = new Date(start);
+            appDate.setDate(start.getDate() + task.days);
 
-            const formattedDate = date.toISOString().split('T')[0];
+            const formattedDate = appDate.toISOString().split('T')[0];
 
             await db.execute(
                 `INSERT INTO suggested_schedule
-                (
-                    crop_id,
-                    growth_stage,
-                    application_schedule,
-                    fertilizer_type,
-                    application_date,
-                    estimated_yield,
-                    days_remaining
-                )
-                VALUES (?, ?, ?, ?, ?, ?, ?)`,
+                (application_schedule, fertilizer_type, application_date, days_remaining, crop_id)
+                VALUES (?, ?, ?, ?, ?)`,
                 [
-                    crop_id,
-                    task.stage,
-                    'Every 2-3 weeks',
+                    task.name,
                     task.fertilizer,
                     formattedDate,
-                    0,
-                    task.days
+                    task.days,
+                    crop_id
                 ]
             );
         }
 
-        return NextResponse.json({ success: true });
+        return NextResponse.json({ message: "Schedule Created Successfully" });
 
     } catch (error) {
         console.error("POST Schedule Error:", error.message);
