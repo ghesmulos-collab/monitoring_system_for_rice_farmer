@@ -2,7 +2,7 @@ import { db } from '@/lib/db';
 import { NextResponse } from 'next/server';
 
 /* =========================
-   GET - Fetch notifications (FIXED)
+   GET - Display Notifications
 ========================= */
 export async function GET() {
     try {
@@ -10,10 +10,16 @@ export async function GET() {
             SELECT 
                 notification_id AS id,
                 crop_id,
+
+                -- FIX: match frontend field name
                 recommended_fertilizer AS fertilizer_type,
+
+                -- FIX: prevent null issues
                 COALESCE(application_date, 'N/A') AS application_date,
+
                 notification_message
             FROM fertilizer_notification
+            ORDER BY notification_id DESC
         `);
 
         return NextResponse.json(rows);
@@ -28,7 +34,7 @@ export async function GET() {
 }
 
 /* =========================
-   POST - Create notification (FIXED SAFETY)
+   POST - Create Notification
 ========================= */
 export async function POST(request) {
     try {
@@ -48,9 +54,8 @@ export async function POST(request) {
             );
         }
 
-        // 🔥 SAFETY FIX: prevent NULL values
-        const fertilizer_type = cropRows[0].fertilizer_type || "Urea";
-        const application_date = cropRows[0].application_date || "N/A";
+        const fertilizer_type = cropRows[0].fertilizer_type || 'Urea';
+        const application_date = cropRows[0].application_date || 'N/A';
 
         const message = `Apply ${fertilizer_type} on ${application_date} for Crop ID ${crop_id}.`;
 
