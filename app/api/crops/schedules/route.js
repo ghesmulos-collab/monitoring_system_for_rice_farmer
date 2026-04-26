@@ -8,7 +8,6 @@ export async function GET() {
         s.suggested_schedule_id,
         s.crop_id,
         s.application_schedule,
-        s.application_date,
         s.days_remaining,
 
         c.growth_stage,
@@ -17,22 +16,22 @@ export async function GET() {
         c.estimated_yield
 
       FROM suggested_schedule s
-      LEFT JOIN crop c ON s.crop_id = c.crop_id
-      ORDER BY s.crop_id, s.days_remaining ASC
+      INNER JOIN crop c ON s.crop_id = c.crop_id
+      ORDER BY s.crop_id, s.days_remaining DESC
     `);
 
     const formatted = (rows || []).map(r => ({
       schedule_id: r.suggested_schedule_id,
       crop_id: r.crop_id,
 
-      growth_stage: r.growth_stage ?? "N/A",
-      fertilizer_type: r.fertilizer_type ?? "N/A",
-      application_schedule: r.application_schedule ?? "N/A",
+      growth_stage: r.growth_stage,
+      fertilizer_type: r.fertilizer_type,
+      application_schedule: r.application_schedule,
 
-      expected_harvest_date: r.expected_harvest_date ?? "N/A",
-      estimated_yield: r.estimated_yield ?? "N/A",
+      expected_harvest_date: r.expected_harvest_date,
+      estimated_yield: r.estimated_yield,
 
-      days_remaining: r.days_remaining ?? 0
+      days_remaining: r.days_remaining
     }));
 
     return NextResponse.json(formatted);
@@ -46,7 +45,6 @@ export async function GET() {
     );
   }
 }
-
 /* =========================
    POST - Generate schedule (FIXED)
 ========================= */
