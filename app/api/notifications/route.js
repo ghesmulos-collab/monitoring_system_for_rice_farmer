@@ -2,18 +2,25 @@ import { db } from '@/lib/db';
 import { NextResponse } from 'next/server';
 
 /* =========================
-   GET - Fetch Notifications (for table display)
+   GET - Fetch Notifications (FIXED with JOIN)
 ========================= */
 export async function GET() {
     try {
         const [rows] = await db.execute(`
             SELECT 
-                fertilizer_notification_id AS notification_id,
-                crop_id,
-                recommended_fertilizer,
-                notification_message
-            FROM fertilizer_notification
-            ORDER BY fertilizer_notification_id DESC
+                fn.fertilizer_notification_id AS notification_id,
+                fn.crop_id,
+                fn.recommended_fertilizer,
+                fn.notification_message,
+
+                -- 🔥 GET REAL DATE FROM CROP TABLE
+                c.application_date
+
+            FROM fertilizer_notification fn
+            LEFT JOIN crop c 
+            ON fn.crop_id = c.crop_id
+
+            ORDER BY fn.fertilizer_notification_id DESC
         `);
 
         return NextResponse.json(rows);
@@ -35,7 +42,7 @@ export async function POST(request) {
         const { crop_id } = await request.json();
 
         const [cropRows] = await db.execute(
-            `SELECT fertilizer_type 
+            `SELECT fertilizer_type, application_date 
              FROM crop 
              WHERE crop_id = ?`,
             [crop_id]
@@ -48,10 +55,10 @@ export async function POST(request) {
             );
         }
 
-        // FIX: safe fallback
         const fertilizer_type = cropRows[0].fertilizer_type || "Urea";
+        const application_date = cropRows[0].application_date;
 
-        const message = `Plan created for Crop ${crop_id}. Schedule basal fertilizer: ${fertilizer_type}.`;
+        const message = `Apply ${fertilizer_type} on ${application_date} for Crop ID ${crop_id}.`;
 
         await db.execute(
             `INSERT INTO fertilizer_notification 
