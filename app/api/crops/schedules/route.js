@@ -2,13 +2,13 @@ import { db } from '@/lib/db';
 import { NextResponse } from 'next/server';
 
 /* =========================
-   GET - Fetch schedules
+   GET - Fetch schedules (FIXED)
 ========================= */
 export async function GET() {
   try {
     const [rows] = await db.execute(`
       SELECT 
-        suggested_schedule_id AS schedule_id,
+        suggested_schedule_id,
         crop_id,
         application_schedule,
         fertilizer_type,
@@ -19,11 +19,11 @@ export async function GET() {
     `);
 
     const formatted = (rows || []).map((row) => ({
-      schedule_id: row.schedule_id,
-      crop_id: row.crop_id || "N/A",
-      application_schedule: row.application_schedule || "N/A",
-      fertilizer_type: row.fertilizer_type || "N/A",
-      application_date: row.application_date || "N/A",
+      schedule_id: row.suggested_schedule_id,
+      crop_id: row.crop_id ?? "N/A",
+      application_schedule: row.application_schedule ?? "N/A",
+      fertilizer_type: row.fertilizer_type ?? "N/A",
+      application_date: row.application_date ?? "N/A",
       days_remaining: row.days_remaining ?? 0
     }));
 
@@ -40,7 +40,7 @@ export async function GET() {
 }
 
 /* =========================
-   POST - Generate schedule
+   POST - Generate schedule (FIXED)
 ========================= */
 export async function POST(request) {
   try {
@@ -91,7 +91,7 @@ export async function POST(request) {
          (application_schedule, fertilizer_type, application_date, days_remaining, crop_id)
          VALUES (?, ?, ?, ?, ?)`,
         [
-          task.name,             // ✅ NO MORE NULL
+          task.name,
           task.fertilizer,
           formattedDate,
           task.days,
