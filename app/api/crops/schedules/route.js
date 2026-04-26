@@ -1,24 +1,28 @@
 import { db } from '@/lib/db';
 import { NextResponse } from 'next/server';
 
+/* =========================
+   GET - Fetch schedules (FIXED)
+========================= */
 export async function GET() {
   try {
     const [rows] = await db.execute(`
       SELECT 
         ss.suggested_schedule_id,
         ss.crop_id,
-
-        c.growth_stage,
-        c.fertilizer_type,
-        c.expected_harvest_date,
-        c.estimated_yield,
-
         ss.application_schedule,
-        ss.days_remaining
+        ss.days_remaining,
+
+        COALESCE(c.growth_stage, 'N/A') AS growth_stage,
+        COALESCE(c.fertilizer_type, 'N/A') AS fertilizer_type,
+        COALESCE(c.expected_harvest_date, 'N/A') AS expected_harvest_date,
+        COALESCE(c.estimated_yield, 'N/A') AS estimated_yield
 
       FROM suggested_schedule ss
-      JOIN crop c ON ss.crop_id = c.crop_id
-      ORDER BY ss.crop_id, ss.days_remaining ASC
+      INNER JOIN crop c 
+        ON LOWER(TRIM(ss.crop_id)) = LOWER(TRIM(c.crop_id))
+
+      ORDER BY ss.crop_id ASC, ss.days_remaining ASC
     `);
 
     return NextResponse.json(rows);
@@ -35,6 +39,7 @@ export async function GET() {
     );
   }
 }
+
 /* =========================
    POST - Generate schedule (FIXED)
 ========================= */
@@ -49,8 +54,9 @@ export async function POST(request) {
       );
     }
 
+    // Get crop data
     const [cropRows] = await db.execute(
-      `SELECT planting_date, fertilizer_type FROM crop WHERE crop_id = ?`,
+      `SELECT * FROM crop WHERE crop_id = ?`,
       [crop_id]
     );
 
@@ -61,8 +67,9 @@ export async function POST(request) {
       );
     }
 
-    const start = new Date(cropRows[0].planting_date);
-    const fertilizerType = cropRows[0].fertilizer_type || "Urea";
+    const crop = cropRows[0];
+
+    const start = new Date(crop.planting_date);
 
     const tasks = [
       { name: 'Basal Application', days: 0 },
@@ -71,9 +78,10 @@ export async function POST(request) {
       { name: 'Harvesting', days: 110 }
     ];
 
+    // Generate schedule rows
     for (const task of tasks) {
       const appDate = new Date(start);
-      appDate.setDate(start.getDate() + task.days);
+      appDate.setDate(appDate.getDate() + task.days);
 
       const formattedDate = appDate.toISOString().split('T')[0];
 
@@ -98,7 +106,10 @@ export async function POST(request) {
     console.error("POST Schedule Error:", error);
 
     return NextResponse.json(
-      { error: "Failed to create schedule" },
+      {
+        error: "Failed to create schedule",
+        debug: error.message
+      },
       { status: 500 }
     );
   }
