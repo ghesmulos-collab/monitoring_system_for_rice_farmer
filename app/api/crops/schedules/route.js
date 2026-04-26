@@ -3,44 +3,56 @@ import { NextResponse } from 'next/server';
 
 export async function GET() {
   try {
-    const [rows] = await db.execute(`
+    const [crops] = await db.execute(`
       SELECT 
-        s.suggested_schedule_id,
-        s.crop_id,
-        s.application_schedule,
-        s.days_remaining,
-
-        c.growth_stage,
-        c.fertilizer_type,
-        c.expected_harvest_date,
-        c.estimated_yield
-
-      FROM suggested_schedule s
-      INNER JOIN crop c ON s.crop_id = c.crop_id
-      ORDER BY s.crop_id, s.days_remaining DESC
+        crop_id,
+        growth_stage,
+        fertilizer_type,
+        expected_harvest_date,
+        estimated_yield,
+        planting_date
+      FROM crop
+      ORDER BY created_at DESC
     `);
 
-    const formatted = (rows || []).map(r => ({
-      schedule_id: r.suggested_schedule_id,
-      crop_id: r.crop_id,
+    const tasks = [
+      { name: 'Basal Application', days: 0 },
+      { name: 'First Top Dress', days: 15 },
+      { name: 'Second Top Dress', days: 35 },
+      { name: 'Harvesting', days: 110 }
+    ];
 
-      growth_stage: r.growth_stage,
-      fertilizer_type: r.fertilizer_type,
-      application_schedule: r.application_schedule,
+    let result = [];
 
-      expected_harvest_date: r.expected_harvest_date,
-      estimated_yield: r.estimated_yield,
+    for (const crop of crops) {
+      const start = new Date(crop.planting_date);
 
-      days_remaining: r.days_remaining
-    }));
+      for (const task of tasks) {
+        const date = new Date(start);
+        date.setDate(start.getDate() + task.days);
 
-    return NextResponse.json(formatted);
+        result.push({
+          crop_id: crop.crop_id,
+          growth_stage: crop.growth_stage,
+          fertilizer_type: crop.fertilizer_type,
+          application_schedule: task.name,
+          expected_harvest_date: crop.expected_harvest_date,
+          estimated_yield: crop.estimated_yield,
+          days_remaining: task.days
+        });
+      }
+    }
+
+    return NextResponse.json(result);
 
   } catch (error) {
-    console.error("SCHEDULE ERROR:", error);
+    console.error("CROP SCHEDULE ERROR:", error);
 
     return NextResponse.json(
-      { error: "Failed to fetch schedules", debug: error.message },
+      {
+        error: "Failed to generate schedules from crop table",
+        debug: error.message
+      },
       { status: 500 }
     );
   }
