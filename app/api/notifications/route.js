@@ -2,19 +2,19 @@ import { db } from '@/lib/db';
 import { NextResponse } from 'next/server';
 
 /* =========================
-   GET - Fetch notifications
+   GET - Fetch notifications (FIXED)
 ========================= */
 export async function GET() {
     try {
-        const [rows] = await db.execute(
-            `SELECT 
-                notification_id,
-                recommended_fertilizer,
-                application_date,
-                notification_message,
-                crop_id
-             FROM fertilizer_notification`
-        );
+        const [rows] = await db.execute(`
+            SELECT 
+                notification_id AS id,
+                crop_id,
+                recommended_fertilizer AS fertilizer_type,
+                COALESCE(application_date, 'N/A') AS application_date,
+                notification_message
+            FROM fertilizer_notification
+        `);
 
         return NextResponse.json(rows);
 
@@ -28,7 +28,7 @@ export async function GET() {
 }
 
 /* =========================
-   POST - Create notification
+   POST - Create notification (FIXED SAFETY)
 ========================= */
 export async function POST(request) {
     try {
@@ -48,8 +48,9 @@ export async function POST(request) {
             );
         }
 
-        const fertilizer_type = cropRows[0].fertilizer_type;
-        const application_date = cropRows[0].application_date;
+        // 🔥 SAFETY FIX: prevent NULL values
+        const fertilizer_type = cropRows[0].fertilizer_type || "Urea";
+        const application_date = cropRows[0].application_date || "N/A";
 
         const message = `Apply ${fertilizer_type} on ${application_date} for Crop ID ${crop_id}.`;
 
@@ -57,7 +58,12 @@ export async function POST(request) {
             `INSERT INTO fertilizer_notification 
             (recommended_fertilizer, application_date, notification_message, crop_id)
             VALUES (?, ?, ?, ?)`,
-            [fertilizer_type, application_date, message, crop_id]
+            [
+                fertilizer_type,
+                application_date,
+                message,
+                crop_id
+            ]
         );
 
         return NextResponse.json({ success: true });

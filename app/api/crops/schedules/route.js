@@ -2,20 +2,29 @@ import { db } from '@/lib/db';
 import { NextResponse } from 'next/server';
 
 /* =========================
-   GET - Fetch schedules
+   GET - Fetch Suggested Schedules (FIXED)
 ========================= */
 export async function GET() {
     try {
-        const [rows] = await db.execute(
-            `SELECT 
-                schedule_id,
+        const [rows] = await db.execute(`
+            SELECT 
+                schedule_id AS id,
+                crop_id,
+                growth_stage,
                 application_schedule,
-                fertilizer_type,
-                application_date,
-                days_remaining,
-                crop_id
-             FROM suggested_schedule`
-        );
+
+                -- FIX: prevent N/A from NULL values
+                COALESCE(fertilizer_type, 'Urea') AS fertilizer_type,
+
+                -- FIX: safe date fallback
+                COALESCE(application_date, 'N/A') AS application_date,
+
+                COALESCE(estimated_yield, 0) AS estimated_yield,
+
+                COALESCE(days_remaining, 0) AS days_remaining
+
+            FROM suggested_schedule
+        `);
 
         return NextResponse.json(rows);
 
@@ -29,7 +38,7 @@ export async function GET() {
 }
 
 /* =========================
-   POST - Generate schedule
+   POST - Generate Suggested Schedule (FIXED)
 ========================= */
 export async function POST(request) {
     try {
@@ -50,7 +59,9 @@ export async function POST(request) {
         }
 
         const planting_date = cropRows[0].planting_date;
-        const baseFertilizer = cropRows[0].fertilizer_type;
+
+        // FIX: ensure fertilizer never becomes NULL
+        const baseFertilizer = cropRows[0].fertilizer_type || 'Urea';
 
         const start = new Date(planting_date);
 
@@ -58,7 +69,7 @@ export async function POST(request) {
             { name: 'Basal Application', days: 0, fertilizer: baseFertilizer },
             { name: 'First Top Dress', days: 15, fertilizer: 'Urea' },
             { name: 'Second Top Dress', days: 35, fertilizer: 'Ammonium Sulfate' },
-            { name: 'Harvesting', days: 110, fertilizer: 'N/A' }
+            { name: 'Harvesting', days: 110, fertilizer: baseFertilizer }
         ];
 
         for (const task of tasks) {
@@ -69,19 +80,29 @@ export async function POST(request) {
 
             await db.execute(
                 `INSERT INTO suggested_schedule
-                (application_schedule, fertilizer_type, application_date, days_remaining, crop_id)
-                VALUES (?, ?, ?, ?, ?)`,
+                (
+                    crop_id,
+                    growth_stage,
+                    application_schedule,
+                    fertilizer_type,
+                    application_date,
+                    estimated_yield,
+                    days_remaining
+                )
+                VALUES (?, ?, ?, ?, ?, ?, ?)`,
                 [
+                    crop_id,
                     task.name,
+                    'Every 2-3 weeks',
                     task.fertilizer,
                     formattedDate,
-                    task.days,
-                    crop_id
+                    0,               
+                    task.days
                 ]
             );
         }
 
-        return NextResponse.json({ message: "Schedule Created" });
+        return NextResponse.json({ message: "Schedule Created Successfully" });
 
     } catch (error) {
         console.error("POST Schedule Error:", error.message);
