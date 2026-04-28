@@ -1,6 +1,9 @@
 import { db } from '@/lib/db';
 import { NextResponse } from 'next/server';
 
+/* =========================
+   GET - Fetch schedules (CLEAN + SAFE)
+========================= */
 export async function GET() {
   try {
     const [rows] = await db.execute(`
@@ -8,6 +11,7 @@ export async function GET() {
         ss.suggested_schedule_id,
         ss.crop_id,
         ss.application_schedule,
+        ss.application_date,
         ss.days_remaining,
 
         COALESCE(c.growth_stage, 'N/A') AS growth_stage,
@@ -22,10 +26,10 @@ export async function GET() {
       ORDER BY ss.crop_id, ss.days_remaining ASC
     `);
 
-    return NextResponse.json(rows);
+    return NextResponse.json(rows || []);
 
   } catch (error) {
-    console.error(error);
+    console.error("GET ERROR:", error);
 
     return NextResponse.json(
       { error: error.message },
@@ -33,8 +37,9 @@ export async function GET() {
     );
   }
 }
+
 /* =========================
-   POST - Generate schedule (ROBUST FIXED)
+   POST - Generate schedule (NO DUPLICATES VERSION)
 ========================= */
 export async function POST(request) {
   try {
@@ -47,7 +52,9 @@ export async function POST(request) {
       );
     }
 
-    // Get crop
+    // =========================
+    // 1. Get crop
+    // =========================
     const [cropRows] = await db.execute(
       `SELECT * FROM crop WHERE LOWER(TRIM(crop_id)) = LOWER(TRIM(?))`,
       [crop_id]
@@ -62,14 +69,31 @@ export async function POST(request) {
 
     const crop = cropRows[0];
 
-    // Validate required fields
     if (!crop.planting_date) {
       return NextResponse.json(
-        { success: false, error: "Missing planting_date in crop table" },
+        { success: false, error: "Missing planting_date" },
         { status: 400 }
       );
     }
 
+    // =========================
+    // 2. Prevent duplicate full regeneration
+    // =========================
+    const [existing] = await db.execute(
+      `SELECT COUNT(*) as count FROM suggested_schedule WHERE crop_id = ?`,
+      [crop_id]
+    );
+
+    if (existing[0].count > 0) {
+      return NextResponse.json({
+        success: true,
+        message: "Schedule already exists for this crop"
+      });
+    }
+
+    // =========================
+    // 3. Generate schedule
+    // =========================
     const start = new Date(crop.planting_date);
 
     const tasks = [
@@ -79,13 +103,6 @@ export async function POST(request) {
       { name: 'Harvesting', days: 110 }
     ];
 
-    // OPTIONAL: prevent duplicate schedules
-    await db.execute(
-      `DELETE FROM suggested_schedule WHERE crop_id = ?`,
-      [crop_id]
-    );
-
-    // Insert schedule
     for (const task of tasks) {
       const appDate = new Date(start);
       appDate.setDate(appDate.getDate() + task.days);
@@ -94,10 +111,14 @@ export async function POST(request) {
 
       await db.execute(
         `INSERT INTO suggested_schedule
-        (application_schedule, application_date, days_remaining, crop_id)
-        VALUES (?, ?, ?, ?)`,
+          (application_schedule, application_date, days_remaining, crop_id)
+         VALUES (?, ?, ?, ?)
+         ON DUPLICATE KEY UPDATE
+          application_schedule = VALUES(application_schedule),
+          application_date = VALUES(application_date),
+          days_remaining = VALUES(days_remaining)`,
         [
-          task.name || "Unknown Task",
+          task.name,
           formattedDate,
           task.days,
           crop_id
@@ -116,7 +137,7 @@ export async function POST(request) {
     return NextResponse.json(
       {
         success: false,
-        error: "Failed to create schedule",
+        error: "Failed to generate schedule",
         message: error.message
       },
       { status: 500 }
