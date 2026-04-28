@@ -22,181 +22,121 @@ const ViewSuggestedSchedules: React.FC = () => {
         const res = await fetch('/api/crops/schedules');
         const data = await res.json();
 
-        if (!res.ok) {
-          console.error("API Error:", data?.error);
-          setSchedules([]);
-          return;
-        }
-
         if (Array.isArray(data)) {
-          const userSchedules = data.map((item: any) => {
-            const harvestDate = new Date(item.expected_harvest_date);
-            const today = new Date();
-            const diffTime = harvestDate.getTime() - today.getTime();
-            const diffDays = Math.ceil(diffTime / (1000 * 60 * 60 * 24));
+          const userSchedules = data.map((item: any) => ({
+            id: item.suggested_schedule_id || Math.random().toString(),
+            crop_id: item.crop_id,
+            growth_stage: item.growth_stage || "N/A",
+            fertilizer_type: item.fertilizer_type || "N/A",
+            application_schedule: item.application_schedule || "N/A",
+            expected_harvest_date: item.expected_harvest_date || "N/A",
+            estimated_yield: item.estimated_yield || "N/A",
+            days_remaining: item.days_remaining ?? 0
+          }));
 
-            return {
-              id: item.suggested_schedule_id || item.crop_id + item.application_schedule,
-              crop_id: item.crop_id,
-              growth_stage: item.growth_stage || "N/A",
-              fertilizer_type: item.fertilizer_type || "N/A",
-              application_schedule: item.application_schedule || "N/A",
-              expected_harvest_date: item.expected_harvest_date
-                ? new Date(item.expected_harvest_date).toISOString().split('T')[0]
-                : "N/A",
-              estimated_yield: item.estimated_yield || "N/A",
-              days_remaining: item.days_remaining ?? diffDays ?? 0
-            };
-          });
+          // --- FIX: Group by Crop ID and only take the first/nearest schedule ---
+          const uniqueCrops = userSchedules.reduce((acc: any, current) => {
+            if (!acc[current.crop_id]) {
+              acc[current.crop_id] = current;
+            }
+            return acc;
+          }, {});
 
-          setSchedules(userSchedules);
-        } else {
-          setSchedules([]);
+          setSchedules(Object.values(uniqueCrops));
         }
       } catch (err) {
-        console.error("Failed to load schedules:", err);
-        setSchedules([]);
+        console.error(err);
       } finally {
         setLoading(false);
       }
     };
-
     fetchSchedules();
   }, []);
 
-  // --- LOGIC FOR CARDS: Grouping data by Crop ID ---
-  const groupedCrops = schedules.reduce((acc: any, current) => {
-    const id = current.crop_id;
-    if (!acc[id]) {
-      acc[id] = { ...current, allSchedules: [] };
-    }
-    acc[id].allSchedules.push({
-      name: current.application_schedule,
-      days: current.days_remaining
-    });
-    return acc;
-  }, {});
-
-  const displayCards = Object.values(groupedCrops) as any[];
-
   return (
-    <div className="space-y-8">
-      <h2 className="text-[#0D6D32] text-xl font-semibold mb-4">
+    <div className="space-y-8 p-4">
+      <h2 className="text-[#0D6D32] text-xl font-semibold mb-6">
         View Suggested Schedules
       </h2>
 
       {/* Table Section */}
-      <section className="bg-white rounded-xl shadow-sm border border-gray-100 overflow-hidden">
+      <div className="bg-white rounded-xl shadow-sm border border-gray-100 overflow-hidden mb-10">
         <div className="px-6 py-4 border-b border-gray-50">
-          <h3 className="text-gray-700 font-semibold text-sm">
+          <h3 className="text-gray-700 font-medium text-sm">
             Fertilizer Schedule Recommendations
           </h3>
         </div>
-
-        <div className="px-6 py-4">
-          <div className="overflow-x-auto">
-            <table className="w-full text-left text-sm border-separate border-spacing-0">
-              <thead className="bg-[#DCFCE7] text-gray-600 font-normal">
-                <tr>
-                  <th className="px-6 py-3 font-semibold border-b border-gray-300">Crop ID</th>
-                  <th className="px-6 py-3 font-semibold border-b border-gray-300">Growth Stage</th>
-                  <th className="px-6 py-3 font-semibold border-b border-gray-300">Fertilizer Type</th>
-                  <th className="px-6 py-3 font-semibold border-b border-gray-300">Application Schedule</th>
-                  <th className="px-6 py-3 font-semibold border-b border-gray-300">Expected Harvest Date</th>
-                  <th className="px-6 py-3 font-semibold border-b border-gray-300">Estimated Yield</th>
-                  <th className="px-6 py-3 font-semibold border-b border-gray-300">Days Remaining</th>
+        <div className="overflow-x-auto p-4">
+          <table className="w-full text-left text-sm border-separate border-spacing-0">
+            <thead className="bg-[#DCFCE7] text-gray-700">
+              <tr>
+                <th className="px-6 py-3 font-semibold first:rounded-l-lg">Crop ID</th>
+                <th className="px-6 py-3 font-semibold">Growth Stage</th>
+                <th className="px-6 py-3 font-semibold">Fertilizer Type</th>
+                <th className="px-6 py-3 font-semibold">Application Schedule</th>
+                <th className="px-6 py-3 font-semibold">Expected Harvest Date</th>
+                <th className="px-6 py-3 font-semibold">Estimated Yield</th>
+                <th className="px-6 py-3 font-semibold last:rounded-r-lg text-center">Days Remaining</th>
+              </tr>
+            </thead>
+            <tbody className="divide-y divide-gray-100">
+              {loading ? (
+                <tr><td colSpan={7} className="p-10 text-center text-gray-400">Loading...</td></tr>
+              ) : schedules.map((s) => (
+                <tr key={s.id} className="text-gray-600">
+                  <td className="px-6 py-4 font-medium">{s.crop_id}</td>
+                  <td className="px-6 py-4">{s.growth_stage}</td>
+                  <td className="px-6 py-4">{s.fertilizer_type}</td>
+                  <td className="px-6 py-4">{s.application_schedule}</td>
+                  <td className="px-6 py-4">{s.expected_harvest_date}</td>
+                  <td className="px-6 py-4">{s.estimated_yield}</td>
+                  <td className="px-6 py-4 text-center">
+                    <span className="bg-[#DCFCE7] text-[#0D6D32] px-3 py-1 rounded text-xs font-bold inline-block w-20">
+                      {s.days_remaining} days
+                    </span>
+                  </td>
                 </tr>
-              </thead>
-
-              <tbody className="divide-y divide-gray-50">
-                {loading ? (
-                  <tr>
-                    <td colSpan={7} className="p-10 text-center text-gray-400">Loading schedules...</td>
-                  </tr>
-                ) : schedules.map((s, index) => {
-                  const isDuplicate = index > 0 && schedules[index - 1].crop_id === s.crop_id;
-                  return (
-                    <tr key={s.id} className="text-gray-700">
-                      <td className="px-5 py-4 border-b border-gray-300 font-bold">
-                        {!isDuplicate ? s.crop_id : ""}
-                      </td>
-                      <td className="px-5 py-4 border-b border-gray-300">
-                        {!isDuplicate ? s.growth_stage : ""}
-                      </td>
-                      <td className="px-5 py-4 border-b border-gray-300">
-                        {!isDuplicate ? s.fertilizer_type : ""}
-                      </td>
-                      <td className="px-5 py-4 border-b border-gray-300 italic text-[#4A5568]">
-                        {s.application_schedule}
-                      </td>
-                      <td className="px-5 py-4 border-b border-gray-300">
-                        {!isDuplicate ? s.expected_harvest_date : ""}
-                      </td>
-                      <td className="px-5 py-4 border-b border-gray-300">
-                        {!isDuplicate ? s.estimated_yield : ""}
-                      </td>
-                      <td className="px-5 py-4 border-b border-gray-300">
-                        <span className="bg-[#DCFCE7] text-[#0D6D32] px-3 py-1 rounded text-xs font-bold whitespace-nowrap">
-                          {s.days_remaining} days
-                        </span>
-                      </td>
-                    </tr>
-                  );
-                })}
-              </tbody>
-            </table>
-          </div>
+              ))}
+            </tbody>
+          </table>
         </div>
-      </section>
+      </div>
 
-      {/* Cards Section - Matches Screenshot Design */}
+      {/* Cards Section */}
       <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
-        {displayCards.map((crop: any) => (
-          <div
-            key={crop.crop_id}
-            className="bg-white rounded-2xl border border-gray-200 shadow-sm overflow-hidden flex flex-col"
-          >
-            {/* Card Header */}
-            <div className="bg-[#F0FFF4] w-full px-6 py-4 border-b border-gray-100">
-              <h4 className="font-bold text-[#2D6A4F] text-lg">
+        {schedules.map((crop) => (
+          <div key={crop.id} className="bg-white rounded-xl border border-gray-100 shadow-sm overflow-hidden border-t-4 border-t-[#DCFCE7]">
+            <div className="bg-[#F9FFF9] px-6 py-4 border-b border-gray-50">
+              <h4 className="font-bold text-[#27AE60] text-lg uppercase tracking-wide">
                 {crop.crop_id}
               </h4>
             </div>
-
-            {/* Card Content */}
-            <div className="p-6 space-y-5 flex-1">
+            <div className="p-6 space-y-4">
               <div>
-                <span className="text-[#718096] text-xs font-medium">Growth Stage</span>
-                <p className="text-[#2D3748] text-sm mt-1">{crop.growth_stage}</p>
+                <span className="text-gray-400 text-[10px] font-bold uppercase block tracking-wider">Growth Stage</span>
+                <span className="text-gray-700 font-semibold">{crop.growth_stage}</span>
               </div>
-
               <div>
-                <span className="text-[#718096] text-xs font-medium">Fertilizer Type</span>
-                <p className="text-[#2D3748] text-sm mt-1">{crop.fertilizer_type}</p>
+                <span className="text-gray-400 text-[10px] font-bold uppercase block tracking-wider">Fertilizer Type</span>
+                <span className="text-gray-700 font-semibold">{crop.fertilizer_type}</span>
               </div>
-
               <div>
-                <span className="text-[#718096] text-xs font-medium">Application Schedule</span>
-                <p className="text-[#2D3748] text-sm mt-1">{crop.application_schedule}</p>
+                <span className="text-gray-400 text-[10px] font-bold uppercase block tracking-wider">Application Schedule</span>
+                <span className="text-gray-700 font-semibold">{crop.application_schedule}</span>
               </div>
-
               <div>
-                <span className="text-[#718096] text-xs font-medium">Expected Harvest Date</span>
-                <p className="text-[#2D3748] text-sm mt-1">{crop.expected_harvest_date}</p>
+                <span className="text-gray-400 text-[10px] font-bold uppercase block tracking-wider">Expected Harvest Date</span>
+                <span className="text-gray-700 font-semibold">{crop.expected_harvest_date}</span>
               </div>
-
               <div>
-                <span className="text-[#718096] text-xs font-medium">Estimated Yield</span>
-                <p className="text-[#2D3748] text-sm mt-1">{crop.estimated_yield}</p>
+                <span className="text-gray-400 text-[10px] font-bold uppercase block tracking-wider">Estimated Yield</span>
+                <span className="text-gray-700 font-semibold">{crop.estimated_yield}</span>
               </div>
-
               <div>
-                <span className="text-[#718096] text-xs font-medium">Days Remaining</span>
-                <div className="mt-2">
-                  <span className="bg-[#DCFCE7] text-[#0D6D32] px-3 py-1.5 rounded-md text-sm font-semibold">
-                    {crop.days_remaining} days
-                  </span>
-                </div>
+                <span className="text-gray-400 text-[10px] font-bold uppercase block tracking-wider mb-1">Days Remaining</span>
+                <span className="bg-[#DCFCE7] text-[#0D6D32] px-3 py-1 rounded text-xs font-bold inline-block">
+                  {crop.days_remaining} days
+                </span>
               </div>
             </div>
           </div>
