@@ -46,11 +46,15 @@ const FertilizerNotification: React.FC = () => {
     ));
   };
 
-  // --- UNIQUE CROP FILTERING ---
-  // This ensures no duplicated crop IDs appear in the card area
-  const unreadNotifications = notifications.filter(n => !n.isRead);
-  const uniqueUnreadCrops = Array.from(
-    new Map(unreadNotifications.map(item => [item.crop_id, item])).values()
+  // --- FIXED DE-DUPLICATION LOGIC ---
+  const uniqueNotifications = Array.from(
+    notifications.reduce((map, obj) => {
+      const existing = map.get(obj.crop_id);
+      if (!existing || (!obj.isRead && existing.isRead)) {
+        map.set(obj.crop_id, obj);
+      }
+      return map;
+    }, new Map<string, Notification>()).values()
   );
 
   const customCellStyle = "px-6 py-4 font-normal text-xs border-b border-gray-100 last:border-r-0";
@@ -61,7 +65,7 @@ const FertilizerNotification: React.FC = () => {
         Fertilizer Notification
       </h2>
 
-      {/* --- TABLE SECTION: SHOWS ALL REMINDERS --- */}
+      {/* --- TABLE SECTION --- */}
       <section className="bg-white rounded-xl shadow-sm border border-gray-100 overflow-hidden">
         <div className="px-6 py-4 border-b border-gray-50">
           <h3 className="text-gray-700 font-medium text-sm">
@@ -84,8 +88,8 @@ const FertilizerNotification: React.FC = () => {
               {loading ? (
                 <tr><td colSpan={5} className="text-center p-10 text-gray-400">Loading...</td></tr>
               ) : (
-                notifications.map((n) => (
-                  <tr key={n.id} className="text-gray-600 hover:bg-gray-50/50 transition-colors">
+                uniqueNotifications.map((n) => (
+                  <tr key={n.id} className="text-gray-600 hover:bg-gray-50/50">
                     <td className={customCellStyle}>{n.crop_id}</td>
                     <td className={customCellStyle}>{n.fertilizer_type}</td>
                     <td className={customCellStyle}>{n.application_date}</td>
@@ -113,16 +117,14 @@ const FertilizerNotification: React.FC = () => {
         </div>
       </section>
 
-      {/* --- CARDS SECTION: NO DUPLICATED CROPS --- */}
+      {/* --- CARDS SECTION: DESIGN MATCHING --- */}
       <div className="grid grid-cols-1 md:grid-cols-2 gap-6 pb-10">
-        {uniqueUnreadCrops.map((n) => (
+        {uniqueNotifications.filter(n => !n.isRead).map((n) => (
           <div
             key={n.id}
-            className="bg-white rounded-xl border border-gray-100 shadow-sm overflow-hidden flex min-h-[150px] transition-transform hover:scale-[1.01]"
+            className="bg-white rounded-xl border border-gray-100 shadow-sm overflow-hidden flex min-h-[150px]"
           >
-            {/* Vertical Accent Bar */}
             <div className="w-1.5 bg-[#27AE60]" />
-
             <div className="flex-1 p-6 flex flex-col justify-between">
               <div>
                 <h4 className="font-bold text-gray-800 text-sm mb-3">
@@ -135,7 +137,6 @@ const FertilizerNotification: React.FC = () => {
                   Scheduled: {n.application_date}
                 </p>
               </div>
-
               <div className="mt-4">
                 <button
                   onClick={() => handleMarkAsRead(n.id)}
