@@ -17,13 +17,11 @@ const FertilizerNotification: React.FC = () => {
   useEffect(() => {
     const fetchNotifications = async () => {
       try {
-        // ✅ FIXED: correct API source
         const res = await fetch('/api/notifications');
         const data = await res.json();
 
         if (Array.isArray(data)) {
           const userRecords = data.map((item: any) => ({
-            // ✅ FIXED: use real DB columns
             id: item.notification_id,
             crop_id: item.crop_id,
             fertilizer_type: item.recommended_fertilizer,
@@ -31,7 +29,6 @@ const FertilizerNotification: React.FC = () => {
             message: item.notification_message,
             isRead: false
           }));
-
           setNotifications(userRecords);
         }
       } catch (err) {
@@ -40,7 +37,6 @@ const FertilizerNotification: React.FC = () => {
         setLoading(false);
       }
     };
-
     fetchNotifications();
   }, []);
 
@@ -50,56 +46,60 @@ const FertilizerNotification: React.FC = () => {
     ));
   };
 
+  // --- UNIQUE CROP FILTERING ---
+  // This ensures no duplicated crop IDs appear in the card area
+  const unreadNotifications = notifications.filter(n => !n.isRead);
+  const uniqueUnreadCrops = Array.from(
+    new Map(unreadNotifications.map(item => [item.crop_id, item])).values()
+  );
+
+  const customCellStyle = "px-6 py-4 font-normal text-xs border-b border-gray-100 last:border-r-0";
+
   return (
-    <div className="space-y-8">
-      <h2 className="text-[#0D6D32] text-xl font-semibold mb-4 tracking-tight">
+    <div className="p-6 space-y-8">
+      <h2 className="text-[#0D6D32] text-xl font-semibold tracking-tight">
         Fertilizer Notification
       </h2>
 
-      {/* Table Section (UNCHANGED DESIGN) */}
+      {/* --- TABLE SECTION: SHOWS ALL REMINDERS --- */}
       <section className="bg-white rounded-xl shadow-sm border border-gray-100 overflow-hidden">
         <div className="px-6 py-4 border-b border-gray-50">
-          <h3 className="text-gray-700 font-semibold text-sm">
+          <h3 className="text-gray-700 font-medium text-sm">
             Fertilizer Application Reminders
           </h3>
         </div>
 
-        <div className="overflow-x-auto">
-          <table className="w-full text-left text-sm">
-            <thead className="bg-[#DCFCE7] text-gray-600 font-semibold">
+        <div className="overflow-x-auto p-4">
+          <table className="w-full text-left text-sm border-separate border-spacing-0">
+            <thead className="bg-[#DCFCE7] text-gray-700">
               <tr>
-                <th className="px-6 py-3">Crop ID</th>
-                <th className="px-6 py-3">Fertilizer Type</th>
-                <th className="px-6 py-3">Application Date</th>
-                <th className="px-6 py-3">Notification Message</th>
-                <th className="px-6 py-3 text-center">Action</th>
+                <th className={`${customCellStyle} font-semibold first:rounded-l-lg`}>Crop ID</th>
+                <th className={`${customCellStyle} font-semibold`}>Fertilizer Type</th>
+                <th className={`${customCellStyle} font-semibold`}>Application Date</th>
+                <th className={`${customCellStyle} font-semibold`}>Notification Message</th>
+                <th className={`${customCellStyle} font-semibold text-center last:rounded-r-lg`}>Action</th>
               </tr>
             </thead>
-
             <tbody>
               {loading ? (
-                <tr>
-                  <td colSpan={5} className="text-center p-10 text-gray-400">
-                    Fetching your data...
-                  </td>
-                </tr>
-              ) : notifications.length > 0 ? (
+                <tr><td colSpan={5} className="text-center p-10 text-gray-400">Loading...</td></tr>
+              ) : (
                 notifications.map((n) => (
-                  <tr key={n.id} className="text-gray-700">
-                    <td className="px-6 py-4">{n.crop_id}</td>
-                    <td className="px-6 py-4">{n.fertilizer_type}</td>
-                    <td className="px-6 py-4">{n.application_date}</td>
-                    <td className="px-6 py-4 flex items-center gap-2">
-                      {!n.isRead && <span className="w-2 h-2 bg-[#27AE60] rounded-full"></span>}
-                      {n.message}
+                  <tr key={n.id} className="text-gray-600 hover:bg-gray-50/50 transition-colors">
+                    <td className={customCellStyle}>{n.crop_id}</td>
+                    <td className={customCellStyle}>{n.fertilizer_type}</td>
+                    <td className={customCellStyle}>{n.application_date}</td>
+                    <td className={`${customCellStyle} flex items-center gap-3`}>
+                      {!n.isRead && <span className="w-2 h-2 bg-[#27AE60] rounded-full shrink-0" />}
+                      <span className={n.isRead ? "text-gray-400" : "text-gray-700"}>{n.message}</span>
                     </td>
-                    <td className="px-6 py-4 text-center">
+                    <td className={`${customCellStyle} text-center`}>
                       {n.isRead ? (
-                        <span className="text-gray-400 text-xs">Read</span>
+                        <span className="text-gray-400 text-xs italic">Read</span>
                       ) : (
                         <button
                           onClick={() => handleMarkAsRead(n.id)}
-                          className="text-[#0D6D32] border border-[#0D6D32] px-3 py-1 rounded text-xs"
+                          className="text-[#0D6D32] border border-[#0D6D32] px-4 py-1 rounded-md text-[11px] font-bold hover:bg-[#0D6D32] hover:text-white transition-all"
                         >
                           Mark as Read
                         </button>
@@ -107,46 +107,43 @@ const FertilizerNotification: React.FC = () => {
                     </td>
                   </tr>
                 ))
-              ) : (
-                <tr>
-                  <td colSpan={5} className="text-center p-10 text-gray-400">
-                    No records found in database.
-                  </td>
-                </tr>
               )}
             </tbody>
           </table>
         </div>
       </section>
 
-      {/* Cards Section (UNCHANGED DESIGN) */}
-      <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
-        {notifications.filter(n => !n.isRead).map((n) => (
+      {/* --- CARDS SECTION: NO DUPLICATED CROPS --- */}
+      <div className="grid grid-cols-1 md:grid-cols-2 gap-6 pb-10">
+        {uniqueUnreadCrops.map((n) => (
           <div
             key={n.id}
-            className="bg-white rounded-xl border border-gray-100 shadow-sm overflow-hidden flex"
+            className="bg-white rounded-xl border border-gray-100 shadow-sm overflow-hidden flex min-h-[150px] transition-transform hover:scale-[1.01]"
           >
+            {/* Vertical Accent Bar */}
             <div className="w-1.5 bg-[#27AE60]" />
 
-            <div className="flex-1 p-6">
-              <h4 className="font-semibold text-gray-800 mb-4 text-sm">
-                {n.fertilizer_type} - {n.crop_id}
-              </h4>
+            <div className="flex-1 p-6 flex flex-col justify-between">
+              <div>
+                <h4 className="font-bold text-gray-800 text-sm mb-3">
+                  {n.fertilizer_type} - {n.crop_id}
+                </h4>
+                <p className="text-sm text-gray-600 leading-relaxed mb-3">
+                  {n.message}
+                </p>
+                <p className="text-[10px] text-gray-400 font-bold uppercase tracking-wider">
+                  Scheduled: {n.application_date}
+                </p>
+              </div>
 
-              <p className="text-sm text-gray-800 mb-2">
-                {n.message}
-              </p>
-
-              <p className="text-[10px] text-gray-400 font-semibold">
-                Scheduled: {n.application_date}
-              </p>
-
-              <button
-                onClick={() => handleMarkAsRead(n.id)}
-                className="mt-4 bg-[#0D6D32] text-white px-4 py-2 rounded-lg text-xs"
-              >
-                Mark as Read
-              </button>
+              <div className="mt-4">
+                <button
+                  onClick={() => handleMarkAsRead(n.id)}
+                  className="bg-[#0D6D32] text-white px-6 py-2 rounded-lg text-xs font-bold shadow-sm hover:bg-[#0a5a29] transition-all"
+                >
+                  Mark as Read
+                </button>
+              </div>
             </div>
           </div>
         ))}
