@@ -34,6 +34,7 @@ const ViewSuggestedSchedules: React.FC = () => {
   }, []);
 
   // --- GROUPING LOGIC ---
+  // This turns the flat list into a grouped list by crop_id
   const groupedData = schedules.reduce((acc: any, current) => {
     const id = current.crop_id;
     if (!acc[id]) {
@@ -48,9 +49,6 @@ const ViewSuggestedSchedules: React.FC = () => {
 
   const finalRows = Object.values(groupedData);
 
-  // Apply your specific requested style string
-  const customCellStyle = "px-6 py-3 font-normal text-sm border-b border-gray-300 last:border-r-0";
-
   return (
     <div className="p-6 space-y-8">
       <h2 className="text-[#0D6D32] text-xl font-semibold">View Suggested Schedules</h2>
@@ -64,47 +62,48 @@ const ViewSuggestedSchedules: React.FC = () => {
           <table className="w-full text-left text-sm border-separate border-spacing-0">
             <thead className="bg-[#DCFCE7] text-gray-700">
               <tr>
-                <th className={`${customCellStyle} font-semibold first:rounded-l-lg`}>Crop ID</th>
-                <th className={`${customCellStyle} font-semibold`}>Growth Stage</th>
-                <th className={`${customCellStyle} font-semibold`}>Fertilizer Type</th>
-                <th className={`${customCellStyle} font-semibold`}>Application Schedule</th>
-                <th className={`${customCellStyle} font-semibold`}>Expected Harvest Date</th>
-                <th className={`${customCellStyle} font-semibold`}>Estimated Yield</th>
-                <th className={`${customCellStyle} font-semibold last:rounded-r-lg`}>Days Remaining</th>
+                <th className="px-6 py-3 font-normal text-sm border-b  border-gray-300 last:border-r-0 font-semibold">Crop ID</th>
+                <th className="px-6 py-3 font-normal text-sm border-b  border-gray-300 last:border-r-0 font-semibold">Growth Stage</th>
+                <th className="px-6 py-3 font-normal text-sm border-b  border-gray-300 last:border-r-0 font-semibold">Fertilizer Type</th>
+                <th className="px-6 py-3 font-normal text-sm border-b  border-gray-300 last:border-r-0 font-semiboldd">Application Schedule</th>
+                <th className="px-6 py-3 font-normal text-sm border-b  border-gray-300 last:border-r-0 font-semibold">Expected Harvest Date</th>
+                <th className="px-6 py-3 font-normal text-sm border-b  border-gray-300 last:border-r-0 font-semibold">Estimated Yield</th>
+                <th className="px-6 py-3 font-normal text-sm border-b  border-gray-300 last:border-r-0 font-semibold">Days Remaining</th>
               </tr>
             </thead>
 
-            <tbody>
+            <tbody className="divide-y divide-gray-100">
               {loading ? (
                 <tr><td colSpan={7} className="p-10 text-center text-gray-400">Loading...</td></tr>
               ) : (
                 finalRows.map((crop: any) => (
                   <tr key={crop.crop_id} className="text-gray-600 hover:bg-gray-50/50">
-                    {/* Added font-semibold to the ID as requested in your string */}
-                    <td className={`${customCellStyle} font-semibold text-black align-top`}>{crop.crop_id}</td>
-                    <td className={`${customCellStyle} align-top`}>{crop.growth_stage}</td>
-                    <td className={`${customCellStyle} align-top`}>{crop.fertilizer_type}</td>
+                    <td className="px-6 py-3 font-normal text-sm border-b  border-gray-300 last:border-r-0 font-semibold">{crop.crop_id}</td>
+                    <td className="px-6 py-3 font-normal text-sm border-b  border-gray-300 last:border-r-0 font-semibold">{crop.growth_stage}</td>
+                    <td className="px-6 py-3 font-normal text-sm border-b  border-gray-300 last:border-r-0 font-semibold">{crop.fertilizer_type}</td>
 
                     {/* STACKED SCHEDULE COLUMN */}
-                    <td className={customCellStyle}>
+                    <td className="px-6 py-3 font-normal text-sm border-b  border-gray-300 last:border-r-0 font-semibold">
                       <div className="flex flex-col gap-4">
                         {crop.tasks.map((task: any, idx: number) => (
-                          <div key={idx} className="italic text-gray-500 pb-1">
+                          <div key={idx} className="italic text-gray-500 border-b border-gray-50 last:border-0 pb-1">
                             {task.name}
                           </div>
                         ))}
                       </div>
                     </td>
 
-                    <td className={`${customCellStyle} align-top`}>{crop.expected_harvest_date}</td>
-                    <td className={`${customCellStyle} align-top`}>{crop.estimated_yield}</td>
+                    <td className="px-6 py-3 font-normal text-sm border-b  border-gray-300 last:border-r-0 font-semibold">{crop.expected_harvest_date}</td>
+                    <td className="px-6 py-3 font-normal text-sm border-b  border-gray-300 last:border-r-0 font-semibold">{crop.estimated_yield}</td>
 
                     {/* STACKED DAYS REMAINING COLUMN */}
-                    <td className={customCellStyle}>
+                    <td className="px-6 py-3 font-normal text-sm border-b  border-gray-300 last:border-r-0 font-semibold">
                       <div className="flex flex-col gap-4">
                         {crop.tasks.map((task: any, idx: number) => (
-                          <div key={idx} className="h-[24px] flex items-center">
-                            <span className="bg-[#DCFCE7] text-[#0D6D32] px-3 py-1 rounded text-[10px] font-bold">
+                          <div key={idx} className="h-[28px] flex items-center">
+                            <span className={`px-3 py-1 rounded text-[10px] font-bold ${
+                              task.days === 0 ? 'bg-red-50 text-red-600' : 'bg-[#DCFCE7] text-[#0D6D32]'
+                            }`}>
                               {task.days} days
                             </span>
                           </div>
